@@ -79,6 +79,39 @@ class DataStore {
         setInterval(() => this.syncFromCloud(true), 3000);
     }
 
+    // Helper: Determine Billing Month & Billing Year for a cutoffDate based on station cutoff day
+    getBillingMonthYear(cutoffDate, stationId = null) {
+        const normDate = normalizeDateString(cutoffDate);
+        if (!normDate) return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+
+        const parts = normDate.split('-');
+        if (parts.length !== 3) return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let d = parseInt(parts[2], 10);
+
+        let cutoffDay = 28; // Default cutoff day for billing period
+
+        if (stationId) {
+            const station = this.getStationById(stationId);
+            if (station && station.defaultCutoffDay) {
+                cutoffDay = parseInt(station.defaultCutoffDay, 10);
+            }
+        }
+
+        // If date is AFTER the cutoff day of calendar month m, it belongs to billing month m+1
+        if (d > cutoffDay) {
+            m++;
+            if (m > 12) {
+                m = 1;
+                y++;
+            }
+        }
+
+        return { year: y, month: m };
+    }
+
     initStorage() {
         if (!localStorage.getItem(STORAGE_KEYS.UNITS)) {
             localStorage.setItem(STORAGE_KEYS.UNITS, JSON.stringify(window.INITIAL_DATA.units));
@@ -102,10 +135,11 @@ class DataStore {
                             r.cutoffDate = norm;
                             modified = true;
                         }
-                        const p = norm.split('-');
-                        if (p.length === 3) {
-                            r.year = parseInt(p[0]);
-                            r.month = parseInt(p[1]);
+                        const period = this.getBillingMonthYear(norm, r.stationId);
+                        if (r.year !== period.year || r.month !== period.month) {
+                            r.year = period.year;
+                            r.month = period.month;
+                            modified = true;
                         }
                     }
                     return r;
@@ -153,11 +187,9 @@ class DataStore {
                             if (r.cutoffDate) {
                                 const normDate = normalizeDateString(r.cutoffDate);
                                 r.cutoffDate = normDate;
-                                const parts = normDate.split('-');
-                                if (parts.length === 3) {
-                                    r.year = parseInt(parts[0]);
-                                    r.month = parseInt(parts[1]);
-                                }
+                                const period = this.getBillingMonthYear(normDate, r.stationId);
+                                r.year = period.year;
+                                r.month = period.month;
                             }
                             return r;
                         });
@@ -591,11 +623,9 @@ class DataStore {
             if (r.cutoffDate) {
                 const normDate = normalizeDateString(r.cutoffDate);
                 r.cutoffDate = normDate;
-                const parts = normDate.split('-');
-                if (parts.length === 3) {
-                    r.year = parseInt(parts[0]);
-                    r.month = parseInt(parts[1]);
-                }
+                const period = this.getBillingMonthYear(normDate, r.stationId);
+                r.year = period.year;
+                r.month = period.month;
             }
             return r;
         });
@@ -760,9 +790,9 @@ class DataStore {
             : '0.00';
 
         const normalizedCutoffDate = normalizeDateString(readingData.cutoffDate);
-        const cutoffDateParts = normalizedCutoffDate.split('-');
-        const year = parseInt(cutoffDateParts[0]);
-        const month = parseInt(cutoffDateParts[1]);
+        const billingPeriod = this.getBillingMonthYear(normalizedCutoffDate, readingData.stationId);
+        const year = billingPeriod.year;
+        const month = billingPeriod.month;
 
         let recordId = readingData.id;
         if (!recordId) {
@@ -869,9 +899,9 @@ class DataStore {
                 : '0.00';
 
             const normalizedCutoffDate = normalizeDateString(readingData.cutoffDate);
-            const cutoffDateParts = normalizedCutoffDate.split('-');
-            const year = parseInt(cutoffDateParts[0]);
-            const month = parseInt(cutoffDateParts[1]);
+            const billingPeriod = this.getBillingMonthYear(normalizedCutoffDate, readingData.stationId);
+            const year = billingPeriod.year;
+            const month = billingPeriod.month;
 
             let recordId = readingData.id || `rd-${readingData.stationId}-${year}-${month}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -942,6 +972,54 @@ class DataStore {
         this.syncTableToCloud('readings');
     }
 
+    // Get Monthly Gross Cutoff Volume for a Station by subtracting previous month's cutoff index from current month's cutoff index
+    getMonthlyCutoffVolumeForStation(stationId, year, month) {
+        const readings = this.getReadings({ stationId });
+        let targetM = parseInt(month, 10);
+        let targetY = parseInt(year, 10);
+
+        if (isNaN(targetM) || isNaN(targetY)) return null;
+
+        // Current month cutoff record (or latest reading in current month)
+        const currentCutoff = readings.find(r => r.year === targetY && r.month === targetM && (r.isMonthlyCutoff || r.status === 'locked')) 
+                           || readings.find(r => r.year === targetY && r.month === targetM);
+
+        if (!currentCutoff) return null;
+
+        // Previous month calculation
+        let prevM = targetM - 1;
+        let prevY = targetY;
+        if (prevM < 1) {
+            prevM = 12;
+            prevY--;
+        }
+
+        const prevCutoff = readings.find(r => r.year === prevY && r.month === prevM && (r.isMonthlyCutoff || r.status === 'locked'))
+                        || readings.find(r => r.year === prevY && r.month === prevM)
+                        || this.getLatestReadingBeforeDate(stationId, currentCutoff.meterId, currentCutoff.cutoffDate);
+
+        let prevReadingVal = 0;
+        if (prevCutoff && prevCutoff.newReading !== undefined) {
+            prevReadingVal = prevCutoff.newReading;
+        } else if (currentCutoff.oldReading !== undefined) {
+            prevReadingVal = currentCutoff.oldReading;
+        }
+
+        const rawVol = currentCutoff.newReading - prevReadingVal;
+        const st = this.getStationById(stationId);
+        const stType = st ? (st.type || 'plus') : 'plus';
+
+        return {
+            stationId: stationId,
+            currentCutoffDate: currentCutoff.cutoffDate,
+            prevCutoffDate: prevCutoff ? prevCutoff.cutoffDate : null,
+            currentReading: currentCutoff.newReading,
+            prevReading: prevReadingVal,
+            rawVolume: rawVol,
+            grossVolume: stType === 'minus' ? -rawVol : rawVol
+        };
+    }
+
     // --- AGGREGATE STATS & DAILY PRODUCTION ---
     getAggregatedMetrics(filters = {}) {
         const readings = this.getReadings(filters);
@@ -960,40 +1038,75 @@ class DataStore {
         const activeStationIds = new Set();
         const activeUnitIds = new Set();
 
-        readings.forEach(r => {
-            const st = this.getStationById(r.stationId);
-            const stType = r.stationType || (st ? st.type : 'plus') || 'plus';
-            
-            const rawVol = r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading);
-            if (stType === 'minus') {
-                totalMinusGross += rawVol;
-            } else {
-                totalPlusGross += rawVol;
-            }
+        // If specific year and month filters are applied, use monthly cutoff difference per station where available
+        if (filters.year && filters.year !== 'all' && filters.month && filters.month !== 'all') {
+            const stationSet = new Set(readings.map(r => r.stationId));
+            stationSet.forEach(stId => {
+                const monthlyVol = this.getMonthlyCutoffVolumeForStation(stId, filters.year, filters.month);
+                if (monthlyVol) {
+                    const st = this.getStationById(stId);
+                    const stType = st ? (st.type || 'plus') : 'plus';
+                    if (stType === 'minus') {
+                        totalMinusGross += monthlyVol.rawVolume;
+                    } else {
+                        totalPlusGross += monthlyVol.rawVolume;
+                    }
+                }
+            });
 
-            const addition = r.additionVolume || 0;
-            totalAdditions += addition;
+            readings.forEach(r => {
+                const addition = r.additionVolume || 0;
+                totalAdditions += addition;
 
-            const internal = r.internalUse || 0;
-            const flushing = r.flushingUse || 0;
-            const leakage = r.leakageLoss || 0;
-            const otherDed = r.otherDeduction || 0;
-            const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
+                const internal = r.internalUse || 0;
+                const flushing = r.flushingUse || 0;
+                const leakage = r.leakageLoss || 0;
+                const otherDed = r.otherDeduction || 0;
+                const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
 
-            totalInternal += internal;
-            totalFlushing += flushing;
-            totalLeakage += leakage;
-            totalOtherDeductions += otherDed;
-            totalDeduction += deduction;
+                totalInternal += internal;
+                totalFlushing += flushing;
+                totalLeakage += leakage;
+                totalOtherDeductions += otherDed;
+                totalDeduction += deduction;
 
-            const net = r.netVolume !== undefined ? r.netVolume : (r.grossVolume + addition - deduction);
-            totalNetVolume += net;
+                activeStationIds.add(r.stationId);
+                activeUnitIds.add(r.unitId);
+            });
+        } else {
+            readings.forEach(r => {
+                const st = this.getStationById(r.stationId);
+                const stType = r.stationType || (st ? st.type : 'plus') || 'plus';
+                
+                const rawVol = r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading);
+                if (stType === 'minus') {
+                    totalMinusGross += rawVol;
+                } else {
+                    totalPlusGross += rawVol;
+                }
 
-            activeStationIds.add(r.stationId);
-            activeUnitIds.add(r.unitId);
-        });
+                const addition = r.additionVolume || 0;
+                totalAdditions += addition;
+
+                const internal = r.internalUse || 0;
+                const flushing = r.flushingUse || 0;
+                const leakage = r.leakageLoss || 0;
+                const otherDed = r.otherDeduction || 0;
+                const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
+
+                totalInternal += internal;
+                totalFlushing += flushing;
+                totalLeakage += leakage;
+                totalOtherDeductions += otherDed;
+                totalDeduction += deduction;
+
+                activeStationIds.add(r.stationId);
+                activeUnitIds.add(r.unitId);
+            });
+        }
 
         totalGross = totalPlusGross - totalMinusGross;
+        totalNetVolume = totalGross + totalAdditions - totalDeduction;
         const overallLossPercent = (totalPlusGross + totalAdditions) > 0 ? ((totalDeduction / (totalPlusGross + totalAdditions)) * 100).toFixed(2) : '0.00';
 
         return {
@@ -1038,18 +1151,32 @@ class DataStore {
         }
 
         readings.forEach(r => {
-            if (dailyMap[r.cutoffDate]) {
-                dailyMap[r.cutoffDate].grossVolume += (r.grossVolume || 0);
-                dailyMap[r.cutoffDate].additionVolume += (r.additionVolume || 0);
-                dailyMap[r.cutoffDate].totalDeduction += (r.totalDeduction || 0);
-                dailyMap[r.cutoffDate].netVolume += (r.netVolume !== undefined ? r.netVolume : ((r.grossVolume || 0) + (r.additionVolume || 0) - (r.totalDeduction || 0)));
-                dailyMap[r.cutoffDate].recordsCount += 1;
-                if (r.isMonthlyCutoff) dailyMap[r.cutoffDate].isMonthlyCutoffDay = true;
-                dailyMap[r.cutoffDate].readings.push(r);
+            if (!r.cutoffDate) return;
+            if (!dailyMap[r.cutoffDate]) {
+                const parts = r.cutoffDate.split('-');
+                const d = parts.length === 3 ? parseInt(parts[2], 10) : 1;
+                dailyMap[r.cutoffDate] = {
+                    day: d,
+                    dateStr: r.cutoffDate,
+                    grossVolume: 0,
+                    additionVolume: 0,
+                    totalDeduction: 0,
+                    netVolume: 0,
+                    recordsCount: 0,
+                    isMonthlyCutoffDay: false,
+                    readings: []
+                };
             }
+            dailyMap[r.cutoffDate].grossVolume += (r.grossVolume || 0);
+            dailyMap[r.cutoffDate].additionVolume += (r.additionVolume || 0);
+            dailyMap[r.cutoffDate].totalDeduction += (r.totalDeduction || 0);
+            dailyMap[r.cutoffDate].netVolume += (r.netVolume !== undefined ? r.netVolume : ((r.grossVolume || 0) + (r.additionVolume || 0) - (r.totalDeduction || 0)));
+            dailyMap[r.cutoffDate].recordsCount += 1;
+            if (r.isMonthlyCutoff) dailyMap[r.cutoffDate].isMonthlyCutoffDay = true;
+            dailyMap[r.cutoffDate].readings.push(r);
         });
 
-        return Object.values(dailyMap);
+        return Object.values(dailyMap).sort((a, b) => a.dateStr.localeCompare(b.dateStr));
     }
 }
 
