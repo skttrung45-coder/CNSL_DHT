@@ -563,6 +563,37 @@ class DataStore {
         return station ? { newReading: station.initialReading } : null;
     }
 
+    getReadingForDate(stationId, meterId = null, cutoffDate = null) {
+        if (!cutoffDate) return null;
+        let filters = { stationId };
+        if (meterId) filters.meterId = meterId;
+        const readings = this.getReadings(filters);
+        return readings.find(r => r.cutoffDate === cutoffDate) || null;
+    }
+
+    getLatestReadingBeforeDate(stationId, meterId = null, cutoffDate = null) {
+        let filters = { stationId };
+        if (meterId) filters.meterId = meterId;
+        let readings = this.getReadings(filters);
+        if (cutoffDate) {
+            readings = readings.filter(r => r.cutoffDate < cutoffDate);
+        }
+        if (readings.length > 0) {
+            return readings[0];
+        }
+
+        if (meterId) {
+            const meter = this.getMeterById(meterId);
+            if (meter) return { newReading: meter.initialReading };
+        }
+
+        const activeMeter = this.getActiveMeterForStation(stationId);
+        if (activeMeter) return { newReading: activeMeter.initialReading };
+
+        const station = this.getStationById(stationId);
+        return station ? { newReading: station.initialReading } : null;
+    }
+
     // Set a specific reading as the SINGLE monthly cutoff reading for its station & month
     setMonthlyCutoffReading(readingId) {
         let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
@@ -595,13 +626,14 @@ class DataStore {
         
         const oldReading = parseInt(readingData.oldReading) || 0;
         const newReading = parseInt(readingData.newReading) || 0;
+        // Today's output volume = Today's index (newReading) - Yesterday's index (oldReading)
         const rawVolume = newReading - oldReading;
 
         const station = this.getStationById(readingData.stationId);
         const stationType = station ? (station.type || 'plus') : 'plus';
 
         // Gross production volume: Positive for 'plus' stations, Negative for 'minus' stations
-        const grossVolume = stationType === 'minus' ? -Math.abs(rawVolume) : Math.abs(rawVolume);
+        const grossVolume = stationType === 'minus' ? -rawVolume : rawVolume;
 
         // Additions & Notes
         const additionVolume = parseInt(readingData.additionVolume) || 0;
@@ -667,7 +699,7 @@ class DataStore {
             cutoffDate: readingData.cutoffDate,
             oldReading: oldReading,
             newReading: newReading,
-            rawVolume: Math.abs(rawVolume),
+            rawVolume: rawVolume,
             grossVolume: grossVolume,
             additionVolume: additionVolume,
             additionNote: additionNote,
@@ -729,7 +761,7 @@ class DataStore {
             const st = this.getStationById(r.stationId);
             const stType = r.stationType || (st ? st.type : 'plus') || 'plus';
             
-            const rawVol = Math.abs(r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading));
+            const rawVol = r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading);
             if (stType === 'minus') {
                 totalMinusGross += rawVol;
             } else {

@@ -354,30 +354,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    inputMeterSelect.addEventListener('change', () => {
+    const inputCutoffDate = document.getElementById('inputCutoffDate');
+
+    function updateOldReadingFromDateAndMeter() {
         const stationId = inputStationSelect.value;
         const meterId = inputMeterSelect.value;
+        const cutoffDate = inputCutoffDate.value;
         if (!stationId) return;
 
         const selectedMeter = window.appStore.getMeterById(meterId);
         if (selectedMeter) {
             inputMeterCode.value = selectedMeter.meterCode;
-            const latest = window.appStore.getLatestReadingForStation(stationId, meterId);
-            if (latest && latest.newReading !== undefined) {
-                inputOldReading.value = latest.newReading;
-            } else {
-                inputOldReading.value = selectedMeter.initialReading;
-            }
         } else {
             const station = window.appStore.getStationById(stationId);
-            if (station) {
-                inputMeterCode.value = station.meterCode;
-                const latest = window.appStore.getLatestReadingForStation(stationId);
-                inputOldReading.value = latest ? latest.newReading : station.initialReading;
+            if (station) inputMeterCode.value = station.meterCode;
+        }
+
+        // Check if a reading already exists for this station/meter on the exact selected cutoffDate
+        const existingOnDate = window.appStore.getReadingForDate(stationId, meterId, cutoffDate);
+        if (existingOnDate) {
+            inputOldReading.value = existingOnDate.oldReading;
+            inputNewReading.value = existingOnDate.newReading;
+            if (inputAdditionVolume) inputAdditionVolume.value = existingOnDate.additionVolume || 0;
+            if (inputAdditionNote) inputAdditionNote.value = existingOnDate.additionNote || '';
+            if (inputInternalUse) inputInternalUse.value = existingOnDate.internalUse || 0;
+            if (inputInternalUseNote) inputInternalUseNote.value = existingOnDate.internalUseNote || '';
+            if (inputFlushingUse) inputFlushingUse.value = existingOnDate.flushingUse || 0;
+            if (inputFlushingUseNote) inputFlushingUseNote.value = existingOnDate.flushingUseNote || '';
+            if (inputLeakageLoss) inputLeakageLoss.value = existingOnDate.leakageLoss || 0;
+            if (inputLeakageLossNote) inputLeakageLossNote.value = existingOnDate.leakageLossNote || '';
+            if (inputOtherDeduction) inputOtherDeduction.value = existingOnDate.otherDeduction || 0;
+            if (inputOtherDeductionNote) inputOtherDeductionNote.value = existingOnDate.otherDeductionNote || '';
+            document.getElementById('inputNotes').value = existingOnDate.notes || '';
+        } else {
+            // Find the latest reading strictly before cutoffDate (yesterday's index)
+            const prevReading = window.appStore.getLatestReadingBeforeDate(stationId, meterId, cutoffDate);
+            if (prevReading && prevReading.newReading !== undefined) {
+                inputOldReading.value = prevReading.newReading;
+            } else if (selectedMeter) {
+                inputOldReading.value = selectedMeter.initialReading;
+            } else {
+                const station = window.appStore.getStationById(stationId);
+                inputOldReading.value = station ? station.initialReading : 0;
             }
+            inputNewReading.value = '';
         }
         calculateFormTotals();
-    });
+    }
+
+    inputCutoffDate.addEventListener('change', updateOldReadingFromDateAndMeter);
+    inputMeterSelect.addEventListener('change', updateOldReadingFromDateAndMeter);
 
     // ----------------------------------------------------
     // 5. Form Live Calculations & Save Action
@@ -411,7 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const oldVal = parseInt(inputOldReading.value) || 0;
         const newVal = parseInt(inputNewReading.value) || 0;
-        const rawVol = Math.abs(newVal - oldVal);
+        // Today's production output = today's index (newVal) - yesterday's index (oldVal)
+        const rawVol = newVal - oldVal;
         const gross = stType === 'minus' ? -rawVol : rawVol;
 
         const addition = parseInt(inputAdditionVolume?.value) || 0;
@@ -442,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const unitId = inputUnitSelect.value;
         const stationId = inputStationSelect.value;
         const meterId = inputMeterSelect.value;
-        const cutoffDate = document.getElementById('inputCutoffDate').value;
+        const cutoffDate = inputCutoffDate.value;
         const oldReading = parseInt(inputOldReading.value) || 0;
         const newReading = parseInt(inputNewReading.value) || 0;
 
@@ -458,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (newReading < oldReading) {
-            showToast('Chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ!', 'danger');
+            showToast('Chỉ số mới (ngày hôm nay) phải lớn hơn hoặc bằng chỉ số cũ (ngày hôm qua)!', 'danger');
             return;
         }
 
@@ -495,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'Đã lưu chỉ số ngày thành công!';
         showToast(statusMsg, 'success');
 
-        inputNewReading.value = '';
         if (inputAdditionVolume) inputAdditionVolume.value = '0';
         if (inputAdditionNote) inputAdditionNote.value = '';
         inputInternalUse.value = '0';
@@ -508,8 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputOtherDeductionNote) inputOtherDeductionNote.value = '';
         document.getElementById('inputNotes').value = '';
 
-        inputOldReading.value = newReading;
-        calculateFormTotals();
+        updateOldReadingFromDateAndMeter();
         updateDashboard();
     }
 
@@ -986,6 +1011,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentRec) return;
 
         const isMonthlyCutoff = document.getElementById('editReadingStatus').value === 'locked';
+        const oldReading = parseInt(document.getElementById('editOldReading').value) || 0;
+        const newReading = parseInt(document.getElementById('editNewReading').value) || 0;
+
+        if (newReading < oldReading) {
+            showToast('Chỉ số mới (ngày hôm nay) phải lớn hơn hoặc bằng chỉ số cũ (ngày hôm qua)!', 'danger');
+            return;
+        }
 
         const updatedReading = {
             id: id,
@@ -994,8 +1026,8 @@ document.addEventListener('DOMContentLoaded', () => {
             meterId: currentRec.meterId,
             meterCode: currentRec.meterCode,
             cutoffDate: document.getElementById('editReadingCutoffDate').value,
-            oldReading: parseInt(document.getElementById('editOldReading').value) || 0,
-            newReading: parseInt(document.getElementById('editNewReading').value) || 0,
+            oldReading: oldReading,
+            newReading: newReading,
             internalUse: parseInt(document.getElementById('editInternalUse').value) || 0,
             flushingUse: parseInt(document.getElementById('editFlushingUse').value) || 0,
             leakageLoss: parseInt(document.getElementById('editLeakageLoss').value) || 0,
