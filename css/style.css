@@ -926,6 +926,62 @@ body {
     to { transform: translateX(0); opacity: 1; }
 }
 
+/* Station Type Badges */
+.badge-plus {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #10b981;
+    font-weight: 700;
+}
+.badge-minus {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #f97316;
+    font-weight: 700;
+}
+
+[data-theme="dark"] .badge-plus {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+[data-theme="dark"] .badge-minus {
+    background: rgba(249, 115, 22, 0.15);
+    color: #fb923c;
+}
+
+/* Addition & Deduction Form Cards */
+.addition-block-card {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.deduction-block-card {
+    background: rgba(239, 68, 68, 0.04);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.deduction-item-row {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 10px;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .deduction-item-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kpi-card.highlight-card {
+    border: 2px solid var(--primary);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--primary-light) 100%);
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .sidebar { width: 80px; }
