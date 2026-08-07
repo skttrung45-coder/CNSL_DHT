@@ -358,20 +358,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatDateVN(dateStr) {
         if (!dateStr) return '';
-        const parts = dateStr.split('-');
+        const norm = window.normalizeDateString ? window.normalizeDateString(dateStr) : dateStr;
+        const parts = norm.split('-');
         if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
         return dateStr;
     }
 
     function getYesterdayDateStr(dateStr) {
         if (!dateStr) return '';
-        const parts = dateStr.split('-');
+        const norm = window.normalizeDateString ? window.normalizeDateString(dateStr) : dateStr;
+        const parts = norm.split('-');
         if (parts.length !== 3) return '';
-        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        d.setDate(d.getDate() - 1);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let d = parseInt(parts[2], 10);
+        d--;
+        if (d < 1) {
+            m--;
+            if (m < 1) {
+                m = 12;
+                y--;
+            }
+            d = new Date(y, m, 0).getDate();
+        }
+        const yyyy = String(y);
+        const mm = String(m).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
         return `${yyyy}-${mm}-${dd}`;
     }
 
@@ -1323,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const station = window.appStore.getStationById(r.stationId);
             return {
                 'STT': i + 1,
-                'Ngày Ghi Chỉ Số': r.cutoffDate,
+                'Ngày Ghi Chỉ Số': formatDateVN(r.cutoffDate),
                 'Loại Ghi Nhận': r.isMonthlyCutoff ? 'Chốt Tháng' : 'Ghi Ngày',
                 'Xí Nghiệp (XNCN)': unit ? unit.name : r.unitId,
                 'Trạm Trực Thuộc': station ? station.name : r.stationId,

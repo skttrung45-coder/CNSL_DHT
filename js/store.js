@@ -69,6 +69,29 @@ class DataStore {
         }
         if (!localStorage.getItem(STORAGE_KEYS.READINGS)) {
             localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify([]));
+        } else {
+            try {
+                let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+                let modified = false;
+                readings = readings.map(r => {
+                    if (r.cutoffDate) {
+                        const norm = normalizeDateString(r.cutoffDate);
+                        if (r.cutoffDate !== norm) {
+                            r.cutoffDate = norm;
+                            modified = true;
+                        }
+                        const p = norm.split('-');
+                        if (p.length === 3) {
+                            r.year = parseInt(p[0]);
+                            r.month = parseInt(p[1]);
+                        }
+                    }
+                    return r;
+                });
+                if (modified) {
+                    localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+                }
+            } catch (e) {}
         }
         if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(window.INITIAL_DATA.users));
