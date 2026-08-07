@@ -47,6 +47,8 @@ class DataStore {
     async syncFromCloud(isBackground = false) {
         if (!GAS_URL) return;
         if (this.isSyncing && isBackground) return;
+        // Don't overwrite local storage if we just performed a local write in the last 5 seconds
+        if (this.lastWriteTime && (Date.now() - this.lastWriteTime < 5000)) return;
 
         this.updateSyncUI('syncing', 'Google Sheets: Đang đồng bộ...');
         this.isSyncing = true;
@@ -99,6 +101,7 @@ class DataStore {
 
     async syncTableToCloud(tableName) {
         if (!GAS_URL) return;
+        this.lastWriteTime = Date.now();
         this.updateSyncUI('syncing', `Đang đẩy ${tableName} lên Google Sheets...`);
         try {
             const keyUpper = tableName.toUpperCase();
@@ -125,6 +128,7 @@ class DataStore {
 
     async syncAllToCloud() {
         if (!GAS_URL) return;
+        this.lastWriteTime = Date.now();
         this.updateSyncUI('syncing', 'Đang đồng bộ tất cả lên Google Sheets...');
         try {
             const payload = {
@@ -195,22 +199,25 @@ class DataStore {
 
     login(username, password) {
         const users = this.getUsers();
-        const cleanUser = username.trim().toLowerCase();
+        const cleanUser = String(username || '').trim().toLowerCase();
+        const cleanPassword = String(password || '').trim();
 
-        const user = users.find(u => u.username.toLowerCase() === cleanUser);
+        const user = users.find(u => String(u.username || '').trim().toLowerCase() === cleanUser);
         if (!user) {
             return { success: false, message: 'Tên đăng nhập không tồn tại!' };
         }
 
-        if (user.password !== password) {
+        if (String(user.password || '').trim() !== cleanPassword) {
             return { success: false, message: 'Mật khẩu không chính xác!' };
         }
 
-        if (user.status === 'pending') {
+        const userStatus = String(user.status || 'pending').toLowerCase();
+
+        if (userStatus === 'pending') {
             return { success: false, message: 'Tài khoản của bạn đang chờ Admin phê duyệt trước khi có thể đăng nhập!' };
         }
 
-        if (user.status === 'rejected') {
+        if (userStatus === 'rejected') {
             return { success: false, message: 'Tài khoản của bạn đã bị từ chối đăng nhập. Vui lòng liên hệ Admin!' };
         }
 
@@ -220,17 +227,17 @@ class DataStore {
 
     register(userData) {
         const users = this.getUsers();
-        const cleanUser = userData.username.trim().toLowerCase();
+        const cleanUser = String(userData.username || '').trim().toLowerCase();
 
-        if (users.some(u => u.username.toLowerCase() === cleanUser)) {
+        if (users.some(u => String(u.username || '').trim().toLowerCase() === cleanUser)) {
             return { success: false, message: 'Tên đăng nhập đã được sử dụng!' };
         }
 
         const newUser = {
             id: 'usr-' + Date.now(),
             username: cleanUser,
-            password: userData.password,
-            fullName: userData.fullName.trim(),
+            password: String(userData.password || '').trim(),
+            fullName: String(userData.fullName || '').trim(),
             unitId: userData.unitId || 'all',
             role: 'staff',
             status: 'pending',
@@ -248,7 +255,8 @@ class DataStore {
 
     approveUser(userId) {
         const users = this.getUsers();
-        const index = users.findIndex(u => u.id === userId);
+        const targetId = String(userId);
+        const index = users.findIndex(u => String(u.id) === targetId);
         if (index >= 0) {
             users[index].status = 'approved';
             this.saveUsers(users);
@@ -259,7 +267,8 @@ class DataStore {
 
     rejectUser(userId) {
         const users = this.getUsers();
-        const index = users.findIndex(u => u.id === userId);
+        const targetId = String(userId);
+        const index = users.findIndex(u => String(u.id) === targetId);
         if (index >= 0) {
             users[index].status = 'rejected';
             this.saveUsers(users);
@@ -270,14 +279,15 @@ class DataStore {
 
     changePassword(userId, newPassword) {
         const users = this.getUsers();
-        const index = users.findIndex(u => u.id === userId);
+        const targetId = String(userId);
+        const index = users.findIndex(u => String(u.id) === targetId);
         if (index >= 0) {
-            users[index].password = newPassword;
+            users[index].password = String(newPassword).trim();
             this.saveUsers(users);
 
             const current = this.getCurrentUser();
-            if (current && current.id === userId) {
-                current.password = newPassword;
+            if (current && String(current.id) === targetId) {
+                current.password = String(newPassword).trim();
                 this.setCurrentUser(current);
             }
             return true;
