@@ -1282,4 +1282,36 @@ document.addEventListener('DOMContentLoaded', () => {
     populateFilterStations('all');
     populateDailyStations('all');
     checkAuth();
+
+    // ----------------------------------------------------
+    // 14. Real-time Google Sheets Cloud Sync Event Listeners
+    // ----------------------------------------------------
+    const btnSyncNow = document.getElementById('btnSyncNow');
+    if (btnSyncNow) {
+        btnSyncNow.addEventListener('click', async () => {
+            showToast('Đang kết nối & đồng bộ dữ liệu từ Google Sheets...', 'info');
+            await window.appStore.syncFromCloud(false);
+        });
+    }
+
+    window.addEventListener('cloud-synced', (e) => {
+        const detail = e.detail || {};
+        if (detail.hasChanged) {
+            showToast('Dữ liệu vừa được cập nhật từ Google Sheets!', 'success');
+            populateFilterStations(document.getElementById('filterUnit')?.value || 'all');
+            populateDailyStations(document.getElementById('dailyUnit')?.value || 'all');
+
+            const activeNav = document.querySelector('.nav-item.active');
+            if (activeNav) {
+                const targetTab = activeNav.getAttribute('data-tab');
+                if (targetTab === 'dashboard-view') updateDashboard();
+                if (targetTab === 'daily-view') renderDailyView();
+                if (targetTab === 'entry-view' && typeof renderQuickHistoryTable === 'function') renderQuickHistoryTable();
+                if (targetTab === 'data-view') renderDataTable();
+                if (targetTab === 'stations-view') renderStationsTable();
+                if (targetTab === 'users-view') renderUsersTable();
+            }
+        }
+    });
 });
+

@@ -11,9 +11,18 @@ const STORAGE_KEYS = {
     CURRENT_USER: 'xncn_current_user_v5'
 };
 
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzxopurfVlw8o2Z-J6Y1QZYim_WW88Yq3fB-soPI7qa-wF6zghjJ_-H_bHag7yfur5i/exec';
+
 class DataStore {
     constructor() {
         this.initStorage();
+        this.syncStatus = 'connecting'; // 'connected' | 'syncing' | 'offline'
+        this.lastSyncedAt = null;
+        this.isSyncing = false;
+
+        // Auto initial fetch from cloud & setup background polling every 10 seconds
+        setTimeout(() => this.syncFromCloud(), 300);
+        setInterval(() => this.syncFromCloud(true), 10000);
     }
 
     initStorage() {
@@ -34,12 +43,131 @@ class DataStore {
         }
     }
 
+    // --- GOOGLE SHEETS REAL-TIME DATABASE SYNC ENGINE ---
+    async syncFromCloud(isBackground = false) {
+        if (!GAS_URL) return;
+        if (this.isSyncing && isBackground) return;
+
+        this.updateSyncUI('syncing', 'Google Sheets: Đang đồng bộ...');
+        this.isSyncing = true;
+
+        try {
+            const res = await fetch(GAS_URL + '?action=all');
+            if (!res.ok) throw new Error('HTTP status ' + res.status);
+            const data = await res.json();
+
+            let hasChanged = false;
+            let isCloudEmpty = true;
+            const keysMap = {
+                units: STORAGE_KEYS.UNITS,
+                stations: STORAGE_KEYS.STATIONS,
+                meters: STORAGE_KEYS.METERS,
+                readings: STORAGE_KEYS.READINGS,
+                users: STORAGE_KEYS.USERS
+            };
+
+            for (const [key, storageKey] of Object.entries(keysMap)) {
+                if (data[key] && Array.isArray(data[key]) && data[key].length > 0) {
+                    isCloudEmpty = false;
+                    const currentLocal = localStorage.getItem(storageKey);
+                    const newCloudStr = JSON.stringify(data[key]);
+                    if (currentLocal !== newCloudStr) {
+                        localStorage.setItem(storageKey, newCloudStr);
+                        hasChanged = true;
+                    }
+                }
+            }
+
+            // If cloud spreadsheet is completely empty (first time deployment), seed cloud from local default data
+            if (isCloudEmpty) {
+                await this.syncAllToCloud();
+            }
+
+            this.lastSyncedAt = new Date();
+            this.updateSyncUI('connected', `Google Sheets: Đã kết nối (${this.lastSyncedAt.toLocaleTimeString()})`);
+
+            if (hasChanged || !isBackground) {
+                window.dispatchEvent(new CustomEvent('cloud-synced', { detail: { hasChanged, isBackground } }));
+            }
+        } catch (err) {
+            console.warn('Cloud sync offline or error:', err);
+            this.updateSyncUI('offline', 'Google Sheets: Ngoại tuyến (Đã lưu local)');
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    async syncTableToCloud(tableName) {
+        if (!GAS_URL) return;
+        this.updateSyncUI('syncing', `Đang đẩy ${tableName} lên Google Sheets...`);
+        try {
+            const keyUpper = tableName.toUpperCase();
+            const storageKey = STORAGE_KEYS[keyUpper];
+            if (!storageKey) return;
+            const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+            await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'save_table',
+                    tableName: tableName,
+                    data: data
+                })
+            });
+            this.lastSyncedAt = new Date();
+            this.updateSyncUI('connected', `Google Sheets: Đã đồng bộ (${this.lastSyncedAt.toLocaleTimeString()})`);
+        } catch (err) {
+            console.warn('Failed to sync table to cloud:', err);
+            this.updateSyncUI('offline', 'Google Sheets: Lưu local (Chờ kết nối)');
+        }
+    }
+
+    async syncAllToCloud() {
+        if (!GAS_URL) return;
+        this.updateSyncUI('syncing', 'Đang đồng bộ tất cả lên Google Sheets...');
+        try {
+            const payload = {
+                units: this.getUnits(),
+                stations: this.getStations(),
+                meters: JSON.parse(localStorage.getItem(STORAGE_KEYS.METERS) || '[]'),
+                readings: JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]'),
+                users: this.getUsers()
+            };
+
+            await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'sync_all',
+                    payload: payload
+                })
+            });
+            this.lastSyncedAt = new Date();
+            this.updateSyncUI('connected', `Google Sheets: Đã đồng bộ (${this.lastSyncedAt.toLocaleTimeString()})`);
+        } catch (err) {
+            console.warn('Failed syncAllToCloud:', err);
+            this.updateSyncUI('offline', 'Google Sheets: Lưu local (Chờ kết nối)');
+        }
+    }
+
+    updateSyncUI(status, text) {
+        this.syncStatus = status;
+        const badge = document.getElementById('cloudSyncBadge');
+        const textElem = document.getElementById('cloudStatusText');
+        if (badge && textElem) {
+            badge.className = `cloud-sync-badge ${status}`;
+            textElem.innerText = text;
+        }
+    }
+
     resetData() {
         localStorage.setItem(STORAGE_KEYS.UNITS, JSON.stringify(window.INITIAL_DATA.units));
         localStorage.setItem(STORAGE_KEYS.STATIONS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.METERS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(window.INITIAL_DATA.users));
+        this.syncAllToCloud();
     }
 
     // --- AUTHENTICATION & USER MANAGEMENT ---
@@ -49,6 +177,7 @@ class DataStore {
 
     saveUsers(users) {
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        this.syncTableToCloud('users');
     }
 
     getCurrentUser() {
@@ -197,6 +326,7 @@ class DataStore {
         };
         stations.push(newStation);
         localStorage.setItem(STORAGE_KEYS.STATIONS, JSON.stringify(stations));
+        this.syncTableToCloud('stations');
 
         this.addMeter({
             stationId: stationId,
@@ -223,6 +353,7 @@ class DataStore {
                 initialReading: parseInt(updatedData.initialReading) !== undefined ? parseInt(updatedData.initialReading) : stations[index].initialReading
             };
             localStorage.setItem(STORAGE_KEYS.STATIONS, JSON.stringify(stations));
+            this.syncTableToCloud('stations');
             return stations[index];
         }
         return null;
@@ -234,6 +365,7 @@ class DataStore {
         if (index >= 0) {
             stations[index].isLocked = !stations[index].isLocked;
             localStorage.setItem(STORAGE_KEYS.STATIONS, JSON.stringify(stations));
+            this.syncTableToCloud('stations');
             return stations[index];
         }
         return null;
@@ -253,6 +385,9 @@ class DataStore {
         let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
         readings = readings.filter(r => r.stationId !== stationId);
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('stations');
+        this.syncTableToCloud('meters');
+        this.syncTableToCloud('readings');
     }
 
     // --- METERS (WATER METERS SUB-ENTITY) ---
@@ -294,6 +429,7 @@ class DataStore {
 
         meters.push(newMeter);
         localStorage.setItem(STORAGE_KEYS.METERS, JSON.stringify(meters));
+        this.syncTableToCloud('meters');
         return newMeter;
     }
 
@@ -305,6 +441,7 @@ class DataStore {
             meters[index].finalReading = parseInt(finalReading) || meters[index].initialReading;
             meters[index].stopDate = stopDate || new Date().toISOString().split('T')[0];
             localStorage.setItem(STORAGE_KEYS.METERS, JSON.stringify(meters));
+            this.syncTableToCloud('meters');
             return meters[index];
         }
         return null;
@@ -340,6 +477,8 @@ class DataStore {
         let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
         readings = readings.filter(r => r.meterId !== meterId);
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('meters');
+        this.syncTableToCloud('readings');
     }
 
     // --- READINGS & SINGLE MONTHLY CUTOFF ENFORCEMENT ---
@@ -435,6 +574,7 @@ class DataStore {
         readings[targetIndex].status = 'locked';
 
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('readings');
         return readings[targetIndex];
     }
 
@@ -515,6 +655,7 @@ class DataStore {
         }
 
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('readings');
         return newRecord;
     }
 
@@ -522,6 +663,7 @@ class DataStore {
         let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
         readings = readings.filter(r => r.id !== readingId);
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('readings');
     }
 
     // --- AGGREGATE STATS & DAILY PRODUCTION ---
