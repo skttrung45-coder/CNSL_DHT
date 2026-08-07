@@ -343,27 +343,13 @@ body {
     gap: 14px;
 }
 
-/* CLOUD SYNC BADGE (HIDDEN AS REQUESTED) */
-.cloud-sync-badge {
-    display: none !important;
-}
-
+/* CLOUD SYNC BADGE (HIDDEN) */
+.cloud-sync-badge,
 .cloud-sync-badge.connecting,
-.cloud-sync-badge.syncing {
-    background: rgba(245, 158, 11, 0.12);
-    border-color: rgba(245, 158, 11, 0.3);
-    color: #f59e0b;
-}
-
-.cloud-sync-badge.connecting .cloud-icon,
-.cloud-sync-badge.syncing .cloud-icon {
-    animation: pulseSpin 1.2s infinite ease-in-out;
-}
-
-.cloud-sync-badge.offline {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #ef4444;
+.cloud-sync-badge.syncing,
+.cloud-sync-badge.offline,
+#cloudSyncBadge {
+    display: none !important;
 }
 
 .btn-sync-now {
