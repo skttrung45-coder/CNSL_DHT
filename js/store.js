@@ -80,7 +80,7 @@ class DataStore {
         setInterval(() => this.syncFromCloud(true), 3000);
     }
 
-    // Helper: Determine Billing Month & Billing Year for a cutoffDate based on station cutoff day
+    // Helper: Determine Billing Month & Billing Year for a cutoffDate
     getBillingMonthYear(cutoffDate, stationId = null) {
         const normDate = normalizeDateString(cutoffDate);
         if (!normDate) return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
@@ -90,25 +90,6 @@ class DataStore {
 
         let y = parseInt(parts[0], 10);
         let m = parseInt(parts[1], 10);
-        let d = parseInt(parts[2], 10);
-
-        let cutoffDay = 28; // Default cutoff day for billing period
-
-        if (stationId) {
-            const station = this.getStationById(stationId);
-            if (station && station.defaultCutoffDay) {
-                cutoffDay = parseInt(station.defaultCutoffDay, 10);
-            }
-        }
-
-        // If date is AFTER the cutoff day of calendar month m, it belongs to billing month m+1
-        if (d > cutoffDay) {
-            m++;
-            if (m > 12) {
-                m = 1;
-                y++;
-            }
-        }
 
         return { year: y, month: m };
     }
