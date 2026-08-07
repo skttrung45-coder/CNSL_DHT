@@ -20,9 +20,9 @@ class DataStore {
         this.lastSyncedAt = null;
         this.isSyncing = false;
 
-        // Auto initial fetch from cloud & setup background polling every 10 seconds
-        setTimeout(() => this.syncFromCloud(), 300);
-        setInterval(() => this.syncFromCloud(true), 10000);
+        // Auto initial fetch from cloud & setup background polling every 3 seconds for high-speed sync
+        setTimeout(() => this.syncFromCloud(), 100);
+        setInterval(() => this.syncFromCloud(true), 3000);
     }
 
     initStorage() {
@@ -47,8 +47,8 @@ class DataStore {
     async syncFromCloud(isBackground = false) {
         if (!GAS_URL) return;
         if (this.isSyncing && isBackground) return;
-        // Don't overwrite local storage if we just performed a local write in the last 5 seconds
-        if (this.lastWriteTime && (Date.now() - this.lastWriteTime < 5000)) return;
+        // Don't overwrite local storage if we just performed a local write in the last 1.5 seconds
+        if (this.lastWriteTime && (Date.now() - this.lastWriteTime < 1500)) return;
 
         this.updateSyncUI('syncing', 'Google Sheets: Đang đồng bộ...');
         this.isSyncing = true;

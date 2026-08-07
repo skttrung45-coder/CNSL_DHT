@@ -1297,7 +1297,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('cloud-synced', (e) => {
         const detail = e.detail || {};
         if (detail.hasChanged) {
-            showToast('Dữ liệu vừa được cập nhật từ Google Sheets!', 'success');
             populateFilterStations(document.getElementById('filterUnit')?.value || 'all');
             populateDailyStations(document.getElementById('dailyUnit')?.value || 'all');
 
