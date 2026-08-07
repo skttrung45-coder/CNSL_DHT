@@ -2,7 +2,7 @@
    SERVICE WORKER - CẤP NƯỚC SƠN LA PWA
    ========================================================================== */
 
-const CACHE_NAME = 'capnuocsl-pwa-v1';
+const CACHE_NAME = 'capnuocsl-pwa-v6';
 const STATIC_ASSETS = [
   './',
   'index.html',
