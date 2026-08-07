@@ -343,6 +343,61 @@ body {
     gap: 14px;
 }
 
+/* CLOUD SYNC BADGE */
+.cloud-sync-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.cloud-sync-badge.connecting,
+.cloud-sync-badge.syncing {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.cloud-sync-badge.connecting .cloud-icon,
+.cloud-sync-badge.syncing .cloud-icon {
+    animation: pulseSpin 1.2s infinite ease-in-out;
+}
+
+.cloud-sync-badge.offline {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.btn-sync-now {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.btn-sync-now:hover {
+    background: rgba(0, 0, 0, 0.15);
+    transform: rotate(45deg);
+}
+
+@keyframes pulseSpin {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+    50% { transform: scale(1.15) rotate(180deg); opacity: 1; }
+    100% { transform: scale(1) rotate(360deg); opacity: 0.8; }
+}
+
 .user-profile-badge {
     display: flex;
     align-items: center;
