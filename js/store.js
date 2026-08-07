@@ -15,6 +15,20 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzxopurfVlw8o2Z-J6Y1QZY
 
 function normalizeDateString(dateVal) {
     if (!dateVal) return '';
+    if (typeof dateVal === 'number') {
+        // Excel Serial Date Number (e.g. 45500)
+        if (dateVal > 10000 && dateVal < 100000) {
+            const utc_days = Math.floor(dateVal - 25569);
+            const utc_value = utc_days * 86400;
+            const d = new Date(utc_value * 1000);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+        dateVal = String(dateVal);
+    }
+
     if (typeof dateVal !== 'string') dateVal = String(dateVal);
     dateVal = dateVal.trim();
 
@@ -27,6 +41,14 @@ function normalizeDateString(dateVal) {
         const dd = p[0].padStart(2, '0');
         const mm = p[1].padStart(2, '0');
         const yyyy = p[2];
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dateVal)) {
+        const p = dateVal.split('/');
+        const yyyy = p[0];
+        const mm = p[1].padStart(2, '0');
+        const dd = p[2].padStart(2, '0');
         return `${yyyy}-${mm}-${dd}`;
     }
 
@@ -812,6 +834,105 @@ class DataStore {
         localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
         this.syncTableToCloud('readings');
         return newRecord;
+    }
+
+    saveBatchReadings(readingsDataList) {
+        let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+        const savedRecords = [];
+
+        readingsDataList.forEach(readingData => {
+            const oldReading = parseInt(readingData.oldReading) || 0;
+            const newReading = parseInt(readingData.newReading) || 0;
+            const rawVolume = newReading - oldReading;
+
+            const station = this.getStationById(readingData.stationId);
+            const stationType = station ? (station.type || 'plus') : 'plus';
+            const grossVolume = stationType === 'minus' ? -rawVolume : rawVolume;
+
+            const additionVolume = parseInt(readingData.additionVolume) || 0;
+            const additionNote = readingData.additionNote ? readingData.additionNote.trim() : '';
+
+            const internalUse = parseInt(readingData.internalUse) || 0;
+            const internalUseNote = readingData.internalUseNote ? readingData.internalUseNote.trim() : '';
+            const flushingUse = parseInt(readingData.flushingUse) || 0;
+            const flushingUseNote = readingData.flushingUseNote ? readingData.flushingUseNote.trim() : '';
+            const leakageLoss = parseInt(readingData.leakageLoss) || 0;
+            const leakageLossNote = readingData.leakageLossNote ? readingData.leakageLossNote.trim() : '';
+            const otherDeduction = parseInt(readingData.otherDeduction) || 0;
+            const otherDeductionNote = readingData.otherDeductionNote ? readingData.otherDeductionNote.trim() : '';
+
+            const totalDeduction = internalUse + flushingUse + leakageLoss + otherDeduction;
+            const netVolume = grossVolume + additionVolume - totalDeduction;
+
+            const lossPercent = (grossVolume > 0 || additionVolume > 0) 
+                ? ((totalDeduction / (Math.max(grossVolume, 0) + additionVolume)) * 100).toFixed(2) 
+                : '0.00';
+
+            const normalizedCutoffDate = normalizeDateString(readingData.cutoffDate);
+            const cutoffDateParts = normalizedCutoffDate.split('-');
+            const year = parseInt(cutoffDateParts[0]);
+            const month = parseInt(cutoffDateParts[1]);
+
+            let recordId = readingData.id || `rd-${readingData.stationId}-${year}-${month}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+            let meterId = readingData.meterId;
+            let meterCode = readingData.meterCode;
+
+            if (!meterId && readingData.stationId) {
+                const activeMeter = this.getActiveMeterForStation(readingData.stationId);
+                if (activeMeter) {
+                    meterId = activeMeter.id;
+                    meterCode = activeMeter.meterCode;
+                }
+            }
+
+            const isMonthlyCutoff = readingData.status === 'locked' || readingData.isMonthlyCutoff === true;
+
+            const newRecord = {
+                id: recordId,
+                unitId: readingData.unitId,
+                stationId: readingData.stationId,
+                stationType: stationType,
+                meterId: meterId || null,
+                meterCode: meterCode || '',
+                year: year,
+                month: month,
+                cutoffDate: normalizedCutoffDate,
+                oldReading: oldReading,
+                newReading: newReading,
+                rawVolume: rawVolume,
+                grossVolume: grossVolume,
+                additionVolume: additionVolume,
+                additionNote: additionNote,
+                internalUse: internalUse,
+                internalUseNote: internalUseNote,
+                flushingUse: flushingUse,
+                flushingUseNote: flushingUseNote,
+                leakageLoss: leakageLoss,
+                leakageLossNote: leakageLossNote,
+                otherDeduction: otherDeduction,
+                otherDeductionNote: otherDeductionNote,
+                totalDeduction: totalDeduction,
+                netVolume: netVolume,
+                lossPercent: parseFloat(lossPercent),
+                isMonthlyCutoff: isMonthlyCutoff,
+                status: isMonthlyCutoff ? 'locked' : (readingData.status || 'daily'),
+                notes: readingData.notes || '',
+                createdAt: new Date().toISOString()
+            };
+
+            const index = readings.findIndex(r => r.id === recordId || (r.stationId === readingData.stationId && r.cutoffDate === normalizedCutoffDate && r.meterId === newRecord.meterId));
+            if (index >= 0) {
+                readings[index] = newRecord;
+            } else {
+                readings.unshift(newRecord);
+            }
+            savedRecords.push(newRecord);
+        });
+
+        localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+        this.syncTableToCloud('readings');
+        return savedRecords;
     }
 
     deleteReading(readingId) {

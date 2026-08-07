@@ -1543,6 +1543,235 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ----------------------------------------------------
+    // 16. Excel Bulk Reading Import Controller (stationId, meterCode, cutoffDate, newReading)
+    // ----------------------------------------------------
+    const batchImportModal = document.getElementById('batchImportModal');
+    const btnOpenBatchImportModalEntry = document.getElementById('btnOpenBatchImportModalEntry');
+    const btnOpenBatchImportModalData = document.getElementById('btnOpenBatchImportModalData');
+    const btnCloseBatchImportModal = document.getElementById('btnCloseBatchImportModal');
+    const btnCancelBatchImportModal = document.getElementById('btnCancelBatchImportModal');
+    const btnDownloadImportTemplate = document.getElementById('btnDownloadImportTemplate');
+    const batchImportFileInput = document.getElementById('batchImportFileInput');
+    const batchImportResultContainer = document.getElementById('batchImportResultContainer');
+    const batchImportSummary = document.getElementById('batchImportSummary');
+    const batchImportErrorList = document.getElementById('batchImportErrorList');
+    const btnConfirmBatchImport = document.getElementById('btnConfirmBatchImport');
+
+    let currentParsedBatch = [];
+
+    function openBatchImportModal() {
+        if (batchImportFileInput) batchImportFileInput.value = '';
+        if (batchImportResultContainer) batchImportResultContainer.style.display = 'none';
+        if (batchImportSummary) batchImportSummary.innerHTML = '';
+        if (batchImportErrorList) batchImportErrorList.innerHTML = '';
+        if (btnConfirmBatchImport) btnConfirmBatchImport.disabled = true;
+        currentParsedBatch = [];
+        if (batchImportModal) batchImportModal.classList.add('active');
+    }
+
+    function closeBatchImportModal() {
+        if (batchImportModal) batchImportModal.classList.remove('active');
+        if (batchImportFileInput) batchImportFileInput.value = '';
+        currentParsedBatch = [];
+    }
+
+    if (btnOpenBatchImportModalEntry) btnOpenBatchImportModalEntry.addEventListener('click', openBatchImportModal);
+    if (btnOpenBatchImportModalData) btnOpenBatchImportModalData.addEventListener('click', openBatchImportModal);
+    if (btnCloseBatchImportModal) btnCloseBatchImportModal.addEventListener('click', closeBatchImportModal);
+    if (btnCancelBatchImportModal) btnCancelBatchImportModal.addEventListener('click', closeBatchImportModal);
+
+    // Download Sample Excel Template
+    if (btnDownloadImportTemplate) {
+        btnDownloadImportTemplate.addEventListener('click', () => {
+            const allStations = window.appStore.getStations('all');
+            const sampleRows = [];
+
+            if (allStations.length > 0) {
+                allStations.slice(0, 5).forEach(st => {
+                    const meters = window.appStore.getMeters(st.id);
+                    const meterCode = meters.length > 0 ? meters[0].meterCode : (st.meterCode || 'DH-01');
+                    sampleRows.push({
+                        'stationId': st.id,
+                        'meterCode': meterCode,
+                        'cutoffDate': formatDateVN(new Date().toISOString().split('T')[0]),
+                        'newReading': (st.initialReading || 1000) + 50
+                    });
+                });
+            } else {
+                sampleRows.push(
+                    { 'stationId': 'st-xncn-tp1-01', 'meterCode': 'DH-TP1-01', 'cutoffDate': '2026-08-07', 'newReading': 1050 },
+                    { 'stationId': 'st-xncn-tp1-02', 'meterCode': 'DH-TP1-02', 'cutoffDate': '2026-08-07', 'newReading': 2100 }
+                );
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(sampleRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "MauNhapChiSo");
+            XLSX.writeFile(workbook, "Mau_Nhap_Chi_So_Hang_Loat.xlsx");
+            showToast('Đã tải xuống file Excel mẫu thành công!', 'success');
+        });
+    }
+
+    // Helper to find column value regardless of case or accents
+    function findRowVal(row, keyNames) {
+        for (const k of Object.keys(row)) {
+            const cleanK = k.toLowerCase().trim().replace(/[_ \-]/g, '');
+            for (const target of keyNames) {
+                if (cleanK === target.toLowerCase().replace(/[_ \-]/g, '')) {
+                    return row[k];
+                }
+            }
+        }
+        return null;
+    }
+
+    // Parse Excel File on Selection
+    if (batchImportFileInput) {
+        batchImportFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const rawRows = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+
+                    if (rawRows.length === 0) {
+                        showToast('File Excel được chọn không có dữ liệu!', 'warning');
+                        return;
+                    }
+
+                    const validList = [];
+                    const errorMsgs = [];
+                    const allStations = window.appStore.getStations('all');
+
+                    rawRows.forEach((row, idx) => {
+                        const rowNum = idx + 2; // Row number in Excel (header is row 1)
+                        const stIdRaw = findRowVal(row, ['stationId', 'station_id', 'station', 'matram', 'mã trạm']);
+                        const mCodeRaw = findRowVal(row, ['meterCode', 'meter_code', 'meter', 'madongho', 'mã đồng hồ']);
+                        const cDateRaw = findRowVal(row, ['cutoffDate', 'cutoff_date', 'date', 'ngayghi', 'ngày ghi']);
+                        const nReadingRaw = findRowVal(row, ['newReading', 'new_reading', 'reading', 'chisomoi', 'chỉ số mới']);
+
+                        if (!stIdRaw && !mCodeRaw && !cDateRaw && !nReadingRaw) return; // Empty row
+
+                        // 1. Resolve Station
+                        const searchSt = String(stIdRaw || '').trim();
+                        const station = allStations.find(s => 
+                            s.id === searchSt || 
+                            s.code.toLowerCase() === searchSt.toLowerCase() || 
+                            s.name.toLowerCase() === searchSt.toLowerCase()
+                        );
+
+                        if (!station) {
+                            errorMsgs.push(`Dòng ${rowNum}: Không tìm thấy Trạm với ID/Mã/Tên "${stIdRaw || 'bỏ trống'}".`);
+                            return;
+                        }
+
+                        if (station.isLocked) {
+                            errorMsgs.push(`Dòng ${rowNum}: Trạm "${station.name}" đang bị khóa.`);
+                            return;
+                        }
+
+                        // 2. Resolve Cutoff Date
+                        const normDate = window.normalizeDateString ? window.normalizeDateString(cDateRaw) : String(cDateRaw || '').trim();
+                        if (!normDate || normDate.length < 8) {
+                            errorMsgs.push(`Dòng ${rowNum}: Ngày chốt chỉ số "${cDateRaw}" không hợp lệ.`);
+                            return;
+                        }
+
+                        // 3. Resolve New Reading
+                        const newReading = parseInt(nReadingRaw);
+                        if (isNaN(newReading) || newReading < 0) {
+                            errorMsgs.push(`Dòng ${rowNum}: Chỉ số mới "${nReadingRaw}" không phải số hợp lệ.`);
+                            return;
+                        }
+
+                        // 4. Resolve Meter
+                        const searchMeterCode = String(mCodeRaw || '').trim();
+                        const meters = window.appStore.getMeters(station.id);
+                        let selectedMeter = meters.find(m => m.meterCode.toLowerCase() === searchMeterCode.toLowerCase());
+                        if (!selectedMeter) {
+                            selectedMeter = window.appStore.getActiveMeterForStation(station.id);
+                        }
+                        const meterId = selectedMeter ? selectedMeter.id : null;
+                        const meterCode = selectedMeter ? selectedMeter.meterCode : (station.meterCode || searchMeterCode);
+
+                        // 5. Lookup Old Reading
+                        const prevReading = window.appStore.getLatestReadingBeforeDate(station.id, meterId, normDate);
+                        let oldReading = 0;
+                        if (prevReading && prevReading.newReading !== undefined) {
+                            oldReading = prevReading.newReading;
+                        } else if (selectedMeter) {
+                            oldReading = selectedMeter.initialReading;
+                        } else {
+                            oldReading = station.initialReading || 0;
+                        }
+
+                        if (newReading < oldReading) {
+                            errorMsgs.push(`Dòng ${rowNum} (${station.name}): Chỉ số mới (${newReading}) nhỏ hơn chỉ số cũ (${oldReading}).`);
+                            return;
+                        }
+
+                        validList.push({
+                            unitId: station.unitId,
+                            stationId: station.id,
+                            meterId: meterId,
+                            meterCode: meterCode,
+                            cutoffDate: normDate,
+                            oldReading: oldReading,
+                            newReading: newReading,
+                            status: 'daily'
+                        });
+                    });
+
+                    currentParsedBatch = validList;
+                    batchImportResultContainer.style.display = 'block';
+
+                    if (validList.length > 0) {
+                        batchImportSummary.innerHTML = `<span style="color:#059669;"><i class="fa-solid fa-circle-check"></i> Đã xử lý hợp lệ: ${validList.length} / ${rawRows.length} dòng.</span>`;
+                        btnConfirmBatchImport.disabled = false;
+                    } else {
+                        batchImportSummary.innerHTML = `<span style="color:#be123c;"><i class="fa-solid fa-circle-xmark"></i> Không có dòng nào hợp lệ để nhập vào hệ thống!</span>`;
+                        btnConfirmBatchImport.disabled = true;
+                    }
+
+                    if (errorMsgs.length > 0) {
+                        batchImportErrorList.style.display = 'block';
+                        batchImportErrorList.innerHTML = `<strong>Chi tiết dòng lỗi (${errorMsgs.length}):</strong><br>` + errorMsgs.join('<br>');
+                    } else {
+                        batchImportErrorList.style.display = 'none';
+                        batchImportErrorList.innerHTML = '';
+                    }
+
+                } catch (err) {
+                    console.error('Error parsing Excel file:', err);
+                    showToast('Có lỗi xảy ra khi đọc file Excel. Vui lòng kiểm tra lại định dạng file!', 'danger');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    // Confirm Batch Import & Save
+    if (btnConfirmBatchImport) {
+        btnConfirmBatchImport.addEventListener('click', () => {
+            if (currentParsedBatch.length === 0) return;
+
+            const saved = window.appStore.saveBatchReadings(currentParsedBatch);
+            showToast(`Đã nhập thành công ${saved.length} bản ghi chỉ số từ file Excel!`, 'success');
+            closeBatchImportModal();
+
+            updateDashboard();
+            renderReadingsTable();
+            if (typeof renderDailyAnalytics === 'function') renderDailyAnalytics();
+        });
+    }
+
     window.addEventListener('appinstalled', () => {
         console.log('[PWA] App installed successfully');
         showToast('Chúc mừng! Đã cài đặt ứng dụng Cấp Nước Sơn La thành công!', 'success');
