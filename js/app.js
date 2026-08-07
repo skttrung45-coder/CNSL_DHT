@@ -1789,5 +1789,147 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Chúc mừng! Đã cài đặt ứng dụng Cấp Nước Sơn La thành công!', 'success');
         if (btnInstallPWA) btnInstallPWA.style.display = 'none';
     });
+
+    // ----------------------------------------------------
+    // 17. Unit Level Additions & Deductions Controller (Quản Lý Tăng / Giảm Sản Lượng Đơn Vị Theo Tháng)
+    // ----------------------------------------------------
+    const unitAdjustmentForm = document.getElementById('unitAdjustmentForm');
+    const unitAdjustmentTableBody = document.getElementById('unitAdjustmentTableBody');
+
+    function renderUnitAdjustmentsTable() {
+        if (!unitAdjustmentTableBody) return;
+        unitAdjustmentTableBody.innerHTML = '';
+
+        const adjustments = window.appStore.getUnitAdjustments();
+        if (adjustments.length === 0) {
+            unitAdjustmentTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-3" style="font-size:12px; color:var(--text-muted);">
+                        Chưa có bản ghi điều chỉnh sản lượng đơn vị nào.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const categoryLabels = {
+            'add_other': '<span class="badge badge-success" style="font-weight:600;">➕ Tăng sản lượng đơn vị</span>',
+            'ded_internal': '<span class="badge badge-info" style="font-weight:600;">➖ Giảm nước nội bộ / Sục rửa</span>',
+            'ded_flushing': '<span class="badge badge-warning" style="font-weight:600;">➖ Giảm thúc xả / Sự cố</span>',
+            'ded_leakage': '<span class="badge badge-danger" style="font-weight:600;">➖ Giảm thất thoát & rò rỉ</span>',
+            'ded_other': '<span class="badge badge-secondary" style="font-weight:600;">➖ Giảm trừ bổ sung khác</span>'
+        };
+
+        adjustments.forEach((adj, idx) => {
+            const unit = window.appStore.getUnitById(adj.unitId);
+            const unitName = unit ? unit.name : adj.unitId;
+
+            let catKey = 'add_other';
+            if (adj.type === 'addition') {
+                catKey = 'add_other';
+            } else {
+                if (adj.category === 'internal') catKey = 'ded_internal';
+                else if (adj.category === 'flushing') catKey = 'ded_flushing';
+                else if (adj.category === 'leakage') catKey = 'ded_leakage';
+                else catKey = 'ded_other';
+            }
+
+            const catBadge = categoryLabels[catKey] || '<span class="badge badge-secondary">Điều chỉnh</span>';
+            const fmt = new Intl.NumberFormat('vi-VN');
+            const volDisplay = adj.type === 'addition'
+                ? `<strong style="color:#059669;">+${fmt.format(adj.volume)}</strong>`
+                : `<strong style="color:var(--danger);">-${fmt.format(adj.volume)}</strong>`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${idx + 1}</strong></td>
+                <td><span class="badge badge-info">${unitName}</span></td>
+                <td><strong>Tháng ${adj.month}/${adj.year}</strong></td>
+                <td>${catBadge}</td>
+                <td>${volDisplay}</td>
+                <td><small style="font-size:11px;">${adj.notes || '-'}</small></td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm delete-adj-btn" data-id="${adj.id}" title="Xóa điều chỉnh">
+                        <i class="fa-solid fa-trash"></i> Xóa
+                    </button>
+                </td>
+            `;
+            unitAdjustmentTableBody.appendChild(tr);
+        });
+
+        // Delete Unit Adjustment Event Listener
+        document.querySelectorAll('.delete-adj-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm('Bạn có chắc chắn muốn xóa bản ghi điều chỉnh sản lượng đơn vị này không?')) {
+                    window.appStore.deleteUnitAdjustment(id);
+                    showToast('Đã xóa bản ghi điều chỉnh sản lượng đơn vị thành công!', 'success');
+                    renderUnitAdjustmentsTable();
+                    updateDashboard();
+                    renderReadingsTable();
+                }
+            });
+        });
+    }
+
+    if (unitAdjustmentForm) {
+        unitAdjustmentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const unitId = document.getElementById('adjUnitId').value;
+            const month = parseInt(document.getElementById('adjMonth').value, 10);
+            const year = parseInt(document.getElementById('adjYear').value, 10);
+            const catType = document.getElementById('adjCategoryType').value;
+            const volume = parseInt(document.getElementById('adjVolume').value, 10);
+            const notes = document.getElementById('adjNotes').value;
+
+            if (!unitId || isNaN(month) || isNaN(year) || isNaN(volume) || volume <= 0) {
+                showToast('Vui lòng nhập đầy đủ thông tin đơn vị, tháng/năm và sản lượng hợp lệ!', 'warning');
+                return;
+            }
+
+            let type = 'addition';
+            let category = 'other';
+
+            if (catType === 'add_other') {
+                type = 'addition';
+                category = 'other';
+            } else if (catType === 'ded_internal') {
+                type = 'deduction';
+                category = 'internal';
+            } else if (catType === 'ded_flushing') {
+                type = 'deduction';
+                category = 'flushing';
+            } else if (catType === 'ded_leakage') {
+                type = 'deduction';
+                category = 'leakage';
+            } else if (catType === 'ded_other') {
+                type = 'deduction';
+                category = 'other';
+            }
+
+            window.appStore.saveUnitAdjustment({
+                unitId,
+                year,
+                month,
+                type,
+                category,
+                volume,
+                notes
+            });
+
+            showToast(`Đã lưu điều chỉnh sản lượng (${type === 'addition' ? '+' : '-'}${volume} m³) cho ${window.appStore.getUnitById(unitId)?.name || unitId} Tháng ${month}/${year}!`, 'success');
+
+            document.getElementById('adjVolume').value = '';
+            document.getElementById('adjNotes').value = '';
+
+            renderUnitAdjustmentsTable();
+            updateDashboard();
+            renderReadingsTable();
+        });
+    }
+
+    // Initial Render of Unit Adjustments Table
+    renderUnitAdjustmentsTable();
 });
 

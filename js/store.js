@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
     STATIONS: 'xncn_stations_v5',
     METERS: 'xncn_meters_v5',
     READINGS: 'xncn_readings_v5',
+    UNIT_ADJUSTMENTS: 'xncn_unit_adjustments_v5',
     USERS: 'xncn_users_v5',
     CURRENT_USER: 'xncn_current_user_v5'
 };
@@ -149,6 +150,9 @@ class DataStore {
                 }
             } catch (e) {}
         }
+        if (!localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS)) {
+            localStorage.setItem(STORAGE_KEYS.UNIT_ADJUSTMENTS, JSON.stringify([]));
+        }
         if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(window.INITIAL_DATA.users));
         }
@@ -176,6 +180,7 @@ class DataStore {
                 stations: STORAGE_KEYS.STATIONS,
                 meters: STORAGE_KEYS.METERS,
                 readings: STORAGE_KEYS.READINGS,
+                unit_adjustments: STORAGE_KEYS.UNIT_ADJUSTMENTS,
                 users: STORAGE_KEYS.USERS
             };
 
@@ -972,6 +977,58 @@ class DataStore {
         this.syncTableToCloud('readings');
     }
 
+    // --- UNIT ADJUSTMENTS (TĂNG / GIẢM SẢN LƯỢNG ĐƠN VỊ THEO THÁNG) ---
+    getUnitAdjustments(filters = {}) {
+        let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
+        if (filters.unitId && filters.unitId !== 'all') {
+            adjustments = adjustments.filter(a => a.unitId === filters.unitId);
+        }
+        if (filters.year && filters.year !== 'all') {
+            adjustments = adjustments.filter(a => a.year === parseInt(filters.year, 10));
+        }
+        if (filters.month && filters.month !== 'all') {
+            adjustments = adjustments.filter(a => a.month === parseInt(filters.month, 10));
+        }
+        if (filters.type && filters.type !== 'all') {
+            adjustments = adjustments.filter(a => a.type === filters.type);
+        }
+        return adjustments.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    }
+
+    saveUnitAdjustment(adjData) {
+        let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
+        const id = adjData.id || `adj-${adjData.unitId}-${adjData.year}-${adjData.month}-${Date.now()}`;
+        const newRecord = {
+            id: id,
+            unitId: adjData.unitId,
+            year: parseInt(adjData.year, 10),
+            month: parseInt(adjData.month, 10),
+            type: adjData.type || 'addition', // 'addition' | 'deduction'
+            category: adjData.category || 'other', // 'internal' | 'flushing' | 'leakage' | 'other'
+            volume: parseInt(adjData.volume, 10) || 0,
+            notes: adjData.notes ? adjData.notes.trim() : '',
+            createdAt: adjData.createdAt || new Date().toISOString()
+        };
+
+        const idx = adjustments.findIndex(a => a.id === id);
+        if (idx >= 0) {
+            adjustments[idx] = newRecord;
+        } else {
+            adjustments.unshift(newRecord);
+        }
+
+        localStorage.setItem(STORAGE_KEYS.UNIT_ADJUSTMENTS, JSON.stringify(adjustments));
+        this.syncTableToCloud('unit_adjustments');
+        return newRecord;
+    }
+
+    deleteUnitAdjustment(adjId) {
+        let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
+        adjustments = adjustments.filter(a => a.id !== adjId);
+        localStorage.setItem(STORAGE_KEYS.UNIT_ADJUSTMENTS, JSON.stringify(adjustments));
+        this.syncTableToCloud('unit_adjustments');
+    }
+
     // Get Monthly Gross Cutoff Volume for a Station by subtracting previous month's cutoff index from current month's cutoff index
     getMonthlyCutoffVolumeForStation(stationId, year, month) {
         const readings = this.getReadings({ stationId });
@@ -1104,6 +1161,22 @@ class DataStore {
                 activeUnitIds.add(r.unitId);
             });
         }
+
+        // Include Unit Level Adjustments (Tăng / Giảm sản lượng riêng của Đơn vị theo Tháng)
+        const unitAdjustments = this.getUnitAdjustments(filters);
+        unitAdjustments.forEach(adj => {
+            const vol = adj.volume || 0;
+            if (adj.type === 'addition') {
+                totalAdditions += vol;
+            } else if (adj.type === 'deduction') {
+                if (adj.category === 'internal') totalInternal += vol;
+                else if (adj.category === 'flushing') totalFlushing += vol;
+                else if (adj.category === 'leakage') totalLeakage += vol;
+                else totalOtherDeductions += vol;
+                totalDeduction += vol;
+            }
+            if (adj.unitId) activeUnitIds.add(adj.unitId);
+        });
 
         totalGross = totalPlusGross - totalMinusGross;
         totalNetVolume = totalGross + totalAdditions - totalDeduction;
