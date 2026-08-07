@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Ghi Chỉ Số Đồng Hồ Nước & Thống Kê Sản Lượng - 12 XNCN</title>
+    
+    <!-- Google Fonts & FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Application CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Chart.js & SheetJS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <!-- ================= AUTHENTICATION OVERLAY ================= -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <i class="fa-solid fa-droplet"></i>
+                </div>
+                <h2>CẤP NƯỚC SƠN LA</h2>
+                <p>Hệ Thống Ghi Chỉ Số Đồng Hồ & Thống Kê Sản Lượng</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tabLoginBtn">Đăng Nhập</button>
+                <button type="button" class="auth-tab-btn" id="tabRegisterBtn">Đăng Ký Tài Khoản</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm">
+                <div class="admin-notice">
+                    <i class="fa-solid fa-shield-halved"></i> <strong>Tài khoản Admin mặc định:</strong><br>
+                    Tên đăng nhập: <code>admin</code> | Mật khẩu: <code>admin</code><br>
+                    <small>Mật khẩu có thể thay đổi bất kỳ lúc nào sau khi đăng nhập.</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label><i class="fa-solid fa-user"></i> Tên Đăng Nhập</label>
+                    <input type="text" id="loginUsername" class="form-control" placeholder="Nhập tên đăng nhập..." required autocomplete="username">
+                </div>
+
+                <div class="form-group mb-4">
+                    <label><i class="fa-solid fa-lock"></i> Mật Khẩu</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Nhập mật khẩu..." required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập
+                </button>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="registerForm" style="display: none;">
+                <div class="admin-notice" style="background:#fef3c7; border-color:#f59e0b; color:#92400e;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>Quy trình phê duyệt:</strong><br>
+                    Tài khoản mới đăng ký phải được <strong>Tài khoản Admin phê duyệt</strong> trước khi có thể đăng nhập.
+                </div>
+
+                <div class="form-group mb-3">
+                    <label><i class="fa-solid fa-id-card"></i> Họ Và Tên</label>
+                    <input type="text" id="regFullName" class="form-control" placeholder="Nhập họ và tên cán bộ..." required>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label><i class="fa-solid fa-user-gear"></i> Tên Đăng Nhập</label>
+                    <input type="text" id="regUsername" class="form-control" placeholder="Tên đăng nhập mới..." required autocomplete="username">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label><i class="fa-solid fa-lock"></i> Mật Khẩu</label>
+                    <input type="password" id="regPassword" class="form-control" placeholder="Tạo mật khẩu..." required autocomplete="new-password">
+                </div>
+
+                <div class="form-group mb-4">
+                    <label><i class="fa-solid fa-building"></i> Thuộc Đơn Vị Cấp Nước (XNCN)</label>
+                    <select id="regUnit" class="form-select" required>
+                        <option value="all">-- Tất cả 12 XNCN (Ban Giám Đốc/Admin) --</option>
+                        <option value="xncn-tp1">XNCN TP1</option>
+                        <option value="xncn-tp2">XNCN TP2</option>
+                        <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                        <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                        <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                        <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                        <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                        <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                        <option value="xncn-song-ma">XNCN Sông Mã</option>
+                        <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                        <option value="xncn-muong-la">XNCN Mường La</option>
+                        <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px;">
+                    <i class="fa-solid fa-user-plus"></i> Đăng Ký Tài Khoản
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP CONTAINER ================= -->
+    <div class="app-container">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-droplet"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>CẤP NƯỚC SƠN LA</h1>
+                    <p>Hệ Thống Ghi Chỉ Số</p>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-tab="dashboard-view">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Thống Kê & Biểu Đồ</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="daily-view">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span>Sản Lượng Phát Theo Ngày</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="entry-view">
+                    <i class="fa-solid fa-file-pen"></i>
+                    <span>Nhập Chỉ Số & Giảm Trừ</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="data-view">
+                    <i class="fa-solid fa-table-list"></i>
+                    <span>Sổ Chỉ Số & Báo Cáo</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="stations-view">
+                    <i class="fa-solid fa-building-flag"></i>
+                    <span>Danh Sách Trạm Trực Thuộc</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="users-view" id="adminUsersNavItem" style="display: none;">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Quản Lý Tài Khoản</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="unit-badge-info">
+                    <p><i class="fa-solid fa-layer-group me-1"></i> Phạm vi quản lý:</p>
+                    <strong>12 Xí Nghiệp Cấp Nước</strong>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT WRAPPER -->
+        <main class="main-wrapper">
+            <!-- TOP NAVBAR -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h2 id="pageTitle">Thống Kê Sản Lượng Cấp Nước</h2>
+                    <p id="pageSubTitle">Tổng hợp số liệu sản lượng sản xuất và giảm trừ 12 XNCN</p>
+                </div>
+
+                <div class="header-actions">
+                    <div class="user-profile-badge" id="userProfileBadge">
+                        <div class="user-avatar" id="userAvatar">A</div>
+                        <div class="user-info-text">
+                            <span class="user-name" id="displayFullName">Quản Trị Viên</span>
+                            <span class="user-role-tag" id="displayRole">ADMIN</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-secondary btn-sm" id="btnOpenChangePasswordModal" title="Đổi mật khẩu tài khoản">
+                        <i class="fa-solid fa-key"></i> Đổi Mật Khẩu
+                    </button>
+
+                    <button class="btn btn-danger btn-sm" id="logoutBtn" title="Đăng xuất khỏi hệ thống">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất
+                    </button>
+
+                    <button class="theme-toggle-btn" id="themeToggleBtn" title="Chuyển chế độ Sáng / Tối">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- ================= 1. DASHBOARD STATS VIEW ================= -->
+                <section id="dashboard-view" class="page-view active">
+                    <div class="filter-card">
+                        <div class="filter-grid">
+                            <div class="form-group">
+                                <label><i class="fa-regular fa-calendar"></i> Năm Chốt</label>
+                                <select id="filterYear" class="form-select">
+                                    <option value="2026">2026</option>
+                                    <option value="2025">2025</option>
+                                    <option value="all">Tất cả các năm</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-regular fa-calendar-check"></i> Tháng Chốt</label>
+                                <select id="filterMonth" class="form-select">
+                                    <option value="all">-- Tất cả các tháng --</option>
+                                    <option value="8" selected>Tháng 08</option>
+                                    <option value="7">Tháng 07</option>
+                                    <option value="6">Tháng 06</option>
+                                    <option value="5">Tháng 05</option>
+                                    <option value="4">Tháng 04</option>
+                                    <option value="3">Tháng 03</option>
+                                    <option value="2">Tháng 02</option>
+                                    <option value="1">Tháng 01</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-building"></i> Đơn Vị Cấp Nước (XNCN)</label>
+                                <select id="filterUnit" class="form-select">
+                                    <option value="all" selected>-- Tất cả 12 XNCN --</option>
+                                    <option value="xncn-tp1">XNCN TP1</option>
+                                    <option value="xncn-tp2">XNCN TP2</option>
+                                    <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                    <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                    <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                    <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                    <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                    <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                    <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                    <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                    <option value="xncn-muong-la">XNCN Mường La</option>
+                                    <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-faucet-drip"></i> Trạm Trực Thuộc</label>
+                                <select id="filterStation" class="form-select">
+                                    <option value="all">-- Tất cả các trạm --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-icon blue">
+                                <i class="fa-solid fa-gauge-high"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <h3>Sản Lượng Sản Xuất</h3>
+                                <div class="kpi-value" id="kpiGross">0 m³</div>
+                                <div class="kpi-sub positive"><i class="fa-solid fa-water"></i> Tổng nước bơm bình</div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon red">
+                                <i class="fa-solid fa-filter-circle-xmark"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <h3>Tổng Sản Lượng Giảm Trừ</h3>
+                                <div class="kpi-value" id="kpiDeduction">0 m³</div>
+                                <div class="kpi-sub negative" id="kpiLossRate">Tỷ lệ giảm trừ: 0.00%</div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon purple">
+                                <i class="fa-solid fa-sitemap"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <h3>Trạm Chốt Hoạt Động</h3>
+                                <div class="kpi-value" id="kpiActiveStations">0 Trạm</div>
+                                <div class="kpi-sub" id="kpiActiveUnits">Thuộc 12 XNCN</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="chart-card col-8">
+                            <div class="chart-header">
+                                <h3><i class="fa-solid fa-chart-column me-2" style="color:#0284c7;"></i>So Sánh Sản Lượng Sản Xuất & Giảm Trừ Giữa Các Đơn Vị (XNCN)</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="unitsComparisonChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card col-4">
+                            <div class="chart-header">
+                                <h3><i class="fa-solid fa-chart-pie me-2" style="color:#f59e0b;"></i>Cơ Cấu Sản Lượng Giảm Trừ</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="deductionBreakdownChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card col-6">
+                            <div class="chart-header">
+                                <h3><i class="fa-solid fa-chart-line me-2" style="color:#10b981;"></i>Xu Hướng Sản Lượng Sản Xuất & Giảm Trừ Qua Các Tháng</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="monthlyTrendChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card col-6">
+                            <div class="chart-header">
+                                <h3><i class="fa-solid fa-chart-bar me-2" style="color:#6366f1;"></i>So Sánh Sản Lượng Giữa Các Trạm Trực Thuộc Xí Nghiệp</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="stationComparisonChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 2. DAILY PRODUCTION ANALYTICS VIEW ================= -->
+                <section id="daily-view" class="page-view">
+                    <div class="filter-card">
+                        <div class="filter-grid">
+                            <div class="form-group">
+                                <label><i class="fa-regular fa-calendar"></i> Năm Thống Kê</label>
+                                <select id="dailyFilterYear" class="form-select">
+                                    <option value="2026">2026</option>
+                                    <option value="2025">2025</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-regular fa-calendar-check"></i> Tháng Thống Kê</label>
+                                <select id="dailyFilterMonth" class="form-select">
+                                    <option value="8" selected>Tháng 08</option>
+                                    <option value="7">Tháng 07</option>
+                                    <option value="6">Tháng 06</option>
+                                    <option value="5">Tháng 05</option>
+                                    <option value="4">Tháng 04</option>
+                                    <option value="3">Tháng 03</option>
+                                    <option value="2">Tháng 02</option>
+                                    <option value="1">Tháng 01</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-building"></i> Lọc Theo Đơn Vị (XNCN)</label>
+                                <select id="dailyFilterUnit" class="form-select">
+                                    <option value="all" selected>-- Tất cả 12 XNCN --</option>
+                                    <option value="xncn-tp1">XNCN TP1</option>
+                                    <option value="xncn-tp2">XNCN TP2</option>
+                                    <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                    <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                    <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                    <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                    <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                    <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                    <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                    <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                    <option value="xncn-muong-la">XNCN Mường La</option>
+                                    <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-faucet-drip"></i> Lọc Theo Trạm Trực Thuộc</label>
+                                <select id="dailyFilterStation" class="form-select">
+                                    <option value="all">-- Tất cả các trạm --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card col-12 mb-4">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-column me-2" style="color:#0284c7;"></i>Biểu Đồ Sản Lượng Sản Xuất Bơm Bằng Theo Từng Ngày Trong Tháng</h3>
+                        </div>
+                        <div class="chart-container" style="height: 360px;">
+                            <canvas id="dailyProductionChartCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <h3 style="font-size:16px; font-weight:700; color:var(--text-heading); margin-bottom:16px;">
+                            <i class="fa-solid fa-table me-2" style="color:#10b981;"></i>Bảng Thống Kê Chi Tiết Sản Lượng Bơm Phát Ra Theo Ngày
+                        </h3>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày Trong Tháng</th>
+                                        <th>Ngày Chốt Đầy Đủ</th>
+                                        <th>Số Bản Ghi</th>
+                                        <th>Sản Lượng Bơm Phát (m³)</th>
+                                        <th>Tổng Giảm Trừ (m³)</th>
+                                        <th>Tỷ Lệ Giảm Trừ (%)</th>
+                                        <th>Trạng Thái Chốt Tháng</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 3. DATA ENTRY & DEDUCTION FORM ================= -->
+                <section id="entry-view" class="page-view">
+                    <div class="form-card">
+                        <form id="meterReadingForm">
+                            <div class="form-grid-2">
+                                <div>
+                                    <div class="form-section-title">
+                                        <i class="fa-solid fa-location-dot"></i> 1. Thông Tin Trạm, Đồng Hồ & Ngày Chốt
+                                    </div>
+
+                                    <div class="form-group mb-3">
+                                        <label><i class="fa-regular fa-calendar-days"></i> Chọn Ngày Ghi / Chốt Chỉ Số *</label>
+                                        <input type="date" id="inputCutoffDate" class="form-control" required>
+                                        <small style="color:var(--text-muted); font-size:11px;">Mỗi tháng mỗi trạm có duy nhất 1 ngày làm ngày chốt tháng (có thể chọn đổi lại ngày chốt tùy ý).</small>
+                                    </div>
+
+                                    <div class="form-group mb-3">
+                                        <label><i class="fa-solid fa-building"></i> Chọn Đơn Vị Cấp Nước (XNCN) *</label>
+                                        <select id="inputUnit" class="form-select" required>
+                                            <option value="">-- Chọn đơn vị cấp nước --</option>
+                                            <option value="xncn-tp1">XNCN TP1</option>
+                                            <option value="xncn-tp2">XNCN TP2</option>
+                                            <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                            <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                            <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                            <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                            <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                            <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                            <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                            <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                            <option value="xncn-muong-la">XNCN Mường La</option>
+                                            <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group mb-3">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <label><i class="fa-solid fa-faucet"></i> Chọn Trạm Trực Thuộc *</label>
+                                            <button type="button" class="btn btn-secondary btn-sm" id="btnOpenNewStationModal" style="padding: 2px 8px; font-size: 11px;">
+                                                <i class="fa-solid fa-plus-circle"></i> Tạo Trạm Mới
+                                            </button>
+                                        </div>
+                                        <select id="inputStation" class="form-select" required disabled>
+                                            <option value="">-- Vui lòng chọn đơn vị cấp nước trước --</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- DYNAMIC METER SELECTION FOR STATION -->
+                                    <div class="form-group mb-3">
+                                        <label><i class="fa-solid fa-gauge"></i> Chọn Đồng Hồ Chốt Chỉ Số *</label>
+                                        <select id="inputMeterSelect" class="form-select" required disabled>
+                                            <option value="">-- Chọn đồng hồ --</option>
+                                        </select>
+                                        <small style="color:var(--primary); font-size:11px;" id="meterAutoSelectHint">
+                                            <i class="fa-solid fa-circle-info"></i> Hệ thống tự động chọn đồng hồ đang sử dụng gần nhất của trạm.
+                                        </small>
+                                    </div>
+
+                                    <div class="form-grid-2">
+                                        <div class="form-group mb-3">
+                                            <label><i class="fa-solid fa-barcode"></i> Mã Đồng Hồ Được Chọn</label>
+                                            <input type="text" id="inputMeterCode" class="form-control" readonly placeholder="Mã đồng hồ...">
+                                        </div>
+                                        <div class="form-group mb-3">
+                                            <label><i class="fa-regular fa-clock"></i> Ngày Chốt Định Kỳ Của Trạm</label>
+                                            <input type="text" id="inputDefaultCutoffDay" class="form-control" readonly placeholder="Ngày chốt trạm...">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group mb-3">
+                                        <label><i class="fa-regular fa-note-sticky"></i> Ghi Chú / Bất Thường</label>
+                                        <textarea id="inputNotes" class="form-control" rows="2" placeholder="Nhập ghi chú tình trạng đường ống, bảo dưỡng..."></textarea>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="form-section-title">
+                                        <i class="fa-solid fa-calculator"></i> 2. Chỉ Số Đồng Hồ & Sản Lượng Giảm Trừ
+                                    </div>
+
+                                    <div class="form-grid-2 mb-3">
+                                        <div class="form-group">
+                                            <label><i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ (m³) *</label>
+                                            <input type="number" id="inputOldReading" class="form-control" min="0" required placeholder="0">
+                                        </div>
+                                        <div class="form-group">
+                                            <label><i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới (m³) *</label>
+                                            <input type="number" id="inputNewReading" class="form-control" min="0" required placeholder="0">
+                                        </div>
+                                    </div>
+
+                                    <div class="calculation-preview-box mb-3">
+                                        <div class="calc-item">
+                                            <label>TỔNG SẢN XUẤT (BƠM BÌNH)</label>
+                                            <div class="val" id="calcGrossVolume">0 m³</div>
+                                        </div>
+                                    </div>
+
+                                    <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700;">
+                                        <i class="fa-solid fa-minus-circle style-danger" style="color:#ef4444;"></i> Các Khoản Sản Lượng Giảm Trừ Của Đơn Vị (m³)
+                                    </label>
+
+                                    <div class="form-grid-3 mb-3">
+                                        <div class="form-group">
+                                            <label style="font-size:11px;">Nước Nội Bộ / Sục Rửa</label>
+                                            <input type="number" id="inputInternalUse" class="form-control" min="0" value="0">
+                                        </div>
+                                        <div class="form-group">
+                                            <label style="font-size:11px;">Xả Rửa Mạng / Sự Cố</label>
+                                            <input type="number" id="inputFlushingUse" class="form-control" min="0" value="0">
+                                        </div>
+                                        <div class="form-group">
+                                            <label style="font-size:11px;">Thất Thoát & Rò Rỉ</label>
+                                            <input type="number" id="inputLeakageLoss" class="form-control" min="0" value="0">
+                                        </div>
+                                    </div>
+
+                                    <div class="calculation-preview-box mb-3" style="background:#fee2e2; border-color:#ef4444;">
+                                        <div class="calc-item">
+                                            <label style="color:#991b1b;">TỔNG GIẢM TRỪ</label>
+                                            <div class="val" id="calcTotalDeduction" style="color:#dc2626;">0 m³</div>
+                                        </div>
+                                        <div class="calc-item">
+                                            <label style="color:#991b1b;">TỶ LỆ GIẢM TRỪ</label>
+                                            <div class="val" id="calcLossPercent" style="color:#dc2626;">0.00%</div>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                                        <button type="button" class="btn btn-secondary" id="btnResetForm">
+                                            <i class="fa-solid fa-rotate"></i> Làm Mới
+                                        </button>
+                                        <button type="button" class="btn btn-info" id="btnSaveDaily" style="background:#0284c7; color:#fff;">
+                                            <i class="fa-solid fa-calendar-day"></i> LƯU CHỈ SỐ NGÀY
+                                        </button>
+                                        <button type="submit" class="btn btn-success" id="btnLockMonthly">
+                                            <i class="fa-solid fa-calendar-check"></i> ĐẶT LÀM NGÀY CHỐT THÁNG
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- ================= 4. DATA TABLE VIEW ================= -->
+                <section id="data-view" class="page-view">
+                    <div class="table-card">
+                        <div class="filter-grid mb-3" style="margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm dữ liệu</label>
+                                <input type="text" id="tableSearchInput" class="form-control" placeholder="Nhập tên trạm, đơn vị, mã đồng hồ...">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-building"></i> Đơn vị XNCN</label>
+                                <select id="tableFilterUnit" class="form-select">
+                                    <option value="all">-- Tất cả 12 XNCN --</option>
+                                    <option value="xncn-tp1">XNCN TP1</option>
+                                    <option value="xncn-tp2">XNCN TP2</option>
+                                    <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                    <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                    <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                    <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                    <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                    <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                    <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                    <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                    <option value="xncn-muong-la">XNCN Mường La</option>
+                                    <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                                <button class="btn btn-success" id="exportExcelBtn">
+                                    <i class="fa-solid fa-file-excel"></i> Xuất File Excel (XLSX)
+                                </button>
+                                <button class="btn btn-secondary" id="printReportBtn">
+                                    <i class="fa-solid fa-print"></i> In / Báo Cáo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="readingsDataTable">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Ngày Ghi Chỉ Số</th>
+                                        <th>Đơn Vị (XNCN)</th>
+                                        <th>Trạm Trực Thuộc</th>
+                                        <th>Mã Đồng Hồ</th>
+                                        <th>Chỉ Số Cũ</th>
+                                        <th>Chỉ Số Mới</th>
+                                        <th>Sản Xuất (m³)</th>
+                                        <th>Giảm Trừ (m³)</th>
+                                        <th>Tỷ Lệ Giảm Trừ</th>
+                                        <th>Loại Ghi Nhận</th>
+                                        <th>Thao Tác Quản Lý</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="readingsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 5. STATIONS MANAGEMENT VIEW ================= -->
+                <section id="stations-view" class="page-view">
+                    <div class="table-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <h3 style="font-size:18px; font-weight:700; color:var(--text-heading);">Danh Sách Các Trạm Chốt Đồng Hồ</h3>
+                                <p style="font-size:13px; color:var(--text-muted);">Quản lý trạm chốt định kỳ và danh sách đồng hồ nước</p>
+                            </div>
+                            <button class="btn btn-primary" id="btnOpenNewStationModalGlobal">
+                                <i class="fa-solid fa-plus"></i> Tạo Trạm Mới
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Trạm</th>
+                                        <th>Tên Trạm Trực Thuộc</th>
+                                        <th>Đơn Vị Cấp Nước (XNCN)</th>
+                                        <th>Đồng Hồ Đang Dùng</th>
+                                        <th>Ngày Chốt Định Kỳ</th>
+                                        <th>Chỉ Số Ban Đầu</th>
+                                        <th>Trạng Thái Lock</th>
+                                        <th>Thao Tác Quản Lý</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stationsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 6. ADMIN ACCOUNT APPROVAL VIEW ================= -->
+                <section id="users-view" class="page-view">
+                    <div class="table-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <h3 style="font-size:18px; font-weight:700; color:var(--text-heading);"><i class="fa-solid fa-user-shield me-2" style="color:#0284c7;"></i>Phê Duyệt & Quản Lý Tài Khoản Ngưỡng</h3>
+                                <p style="font-size:13px; color:var(--text-muted);">Duyệt tài khoản người dùng đăng ký mới để cho phép truy cập hệ thống</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Họ Và Tên Cán Bộ</th>
+                                        <th>Tên Đăng Nhập</th>
+                                        <th>Đơn Vị Quản Lý</th>
+                                        <th>Vai Trò</th>
+                                        <th>Trạng Thái Tài Khoản</th>
+                                        <th>Ngày Đăng Ký</th>
+                                        <th>Phê Duyệt / Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL: TẠO TRẠM MỚI ================= -->
+    <div class="modal-overlay" id="newStationModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-building-circle-check me-2" style="color:#0284c7;"></i>Tạo Trạm Trực Thuộc Mới</h3>
+                <button class="close-modal" id="btnCloseNewStationModal">&times;</button>
+            </div>
+            <form id="newStationForm">
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>Thuộc Đơn Vị Cấp Nước (XNCN) *</label>
+                        <select id="modalStationUnit" class="form-select" required>
+                            <option value="">-- Chọn đơn vị cấp nước --</option>
+                            <option value="xncn-tp1">XNCN TP1</option>
+                            <option value="xncn-tp2">XNCN TP2</option>
+                            <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                            <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                            <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                            <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                            <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                            <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                            <option value="xncn-song-ma">XNCN Sông Mã</option>
+                            <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                            <option value="xncn-muong-la">XNCN Mường La</option>
+                            <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                        </select>
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Mã Trạm (VD: TP1-NC) *</label>
+                            <input type="text" id="modalStationCode" class="form-control" required placeholder="Mã trạm...">
+                        </div>
+                        <div class="form-group">
+                            <label>Tên Trạm Trực Thuộc *</label>
+                            <input type="text" id="modalStationName" class="form-control" required placeholder="Tên trạm bơm/phân phối...">
+                        </div>
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Mã Đồng Hồ Khởi Tạo *</label>
+                            <input type="text" id="modalMeterCode" class="form-control" required placeholder="VD: DH-TP1-01">
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày Chốt Định Kỳ (1 - 31) *</label>
+                            <input type="number" id="modalDefaultCutoffDay" class="form-control" min="1" max="31" value="25" required placeholder="Ngày chốt (1 - 31)...">
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Chỉ Số Đồng Hồ Khởi Tạo (m³) *</label>
+                        <input type="number" id="modalInitialReading" class="form-control" value="0" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelNewStationModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Tạo Trạm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: QUẢN LÝ ĐỒNG HỒ NƯỚC CỦA TRẠM ================= -->
+    <div class="modal-overlay" id="meterManagementModal">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-gauge-high me-2" style="color:#0284c7;"></i>Quản Lý Đồng Hồ Nước - <span id="manageStationTitle">Trạm</span></h3>
+                <button class="close-modal" id="btnCloseMeterManagementModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <p style="font-size:13px; color:var(--text-muted);">Danh sách các đồng hồ nước đã và đang sử dụng tại trạm này:</p>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-success btn-sm" id="btnOpenAddMeterModal">
+                            <i class="fa-solid fa-plus"></i> Thêm Đồng Hồ
+                        </button>
+                        <button class="btn btn-warning btn-sm" id="btnOpenReplaceMeterModal">
+                            <i class="fa-solid fa-arrows-rotate"></i> Thay Đồng Hồ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã Đồng Hồ</th>
+                                <th>Tên / Mô Tả</th>
+                                <th>Chỉ Số Đầu</th>
+                                <th>Chỉ Số Cuối</th>
+                                <th>Ngày Bắt Đầu</th>
+                                <th>Trạng Thái</th>
+                                <th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stationMetersTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnCancelMeterManagementModal">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: THÊM ĐỒNG HỒ MỚI ================= -->
+    <div class="modal-overlay" id="addMeterModal">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-plus-circle me-2" style="color:#10b981;"></i>Thêm Đồng Hồ Mới Cho Trạm</h3>
+                <button class="close-modal" id="btnCloseAddMeterModal">&times;</button>
+            </div>
+            <form id="addMeterForm">
+                <input type="hidden" id="addMeterStationId">
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>Mã Đồng Hồ Mới *</label>
+                        <input type="text" id="addMeterCodeInput" class="form-control" placeholder="VD: DH-MS-02" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Tên / Mô Tả Đồng Hồ</label>
+                        <input type="text" id="addMeterNameInput" class="form-control" placeholder="Mô tả đồng hồ (nếu có)...">
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Chỉ Số Khởi Tạo (m³) *</label>
+                            <input type="number" id="addMeterInitialReading" class="form-control" min="0" value="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày Bắt Đầu Sử Dụng *</label>
+                            <input type="date" id="addMeterStartDate" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelAddMeterModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i> Thêm Đồng Hồ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: THAY ĐỒNG HỒ ================= -->
+    <div class="modal-overlay" id="replaceMeterModal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-arrows-rotate me-2" style="color:#f59e0b;"></i>Quy Trình Thay Đồng Hồ Nước</h3>
+                <button class="close-modal" id="btnCloseReplaceMeterModal">&times;</button>
+            </div>
+            <form id="replaceMeterForm">
+                <input type="hidden" id="replaceStationId">
+                <input type="hidden" id="replaceOldMeterId">
+                <div class="modal-body">
+                    <div class="admin-notice mb-3" style="background:#fef3c7; border-color:#f59e0b; color:#92400e;">
+                        <i class="fa-solid fa-circle-info"></i> Hệ thống sẽ <strong>Ngừng đồng hồ đang dùng</strong> (chốt chỉ số cuối) và tạo <strong>Đồng hồ mới thay thế</strong>.
+                    </div>
+
+                    <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700; color:#ef4444;">
+                        1. Thông Tin Chốt Đồng Hồ Cũ Đang Sử Dụng: <span id="replaceOldMeterCodeText" style="color:#0f172a;">-</span>
+                    </label>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Chỉ Số Cuối Đồng Hồ Cũ (m³) *</label>
+                            <input type="number" id="replaceOldFinalReading" class="form-control" min="0" required placeholder="Nhập chỉ số tháo rời...">
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày Tháo / Thay *</label>
+                            <input type="date" id="replaceDate" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700; color:#10b981;">
+                        2. Thông Tin Đồng Hồ Mới Thay Thế:
+                    </label>
+                    <div class="form-group mb-3">
+                        <label>Mã Đồng Hồ Mới *</label>
+                        <input type="text" id="replaceNewMeterCode" class="form-control" placeholder="VD: DH-MS-NEW-01" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Chỉ Số Khởi Tạo Đồng Hồ Mới (m³) *</label>
+                        <input type="number" id="replaceNewInitialReading" class="form-control" min="0" value="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelReplaceMeterModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-warning"><i class="fa-solid fa-check"></i> Xác Nhận Thay Đồng Hồ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: NGỪNG ĐỒNG HỒ ================= -->
+    <div class="modal-overlay" id="stopMeterModal">
+        <div class="modal-box" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-circle-stop me-2" style="color:#ef4444;"></i>Ngừng Sử Dụng Đồng Hồ</h3>
+                <button class="close-modal" id="btnCloseStopMeterModal">&times;</button>
+            </div>
+            <form id="stopMeterForm">
+                <input type="hidden" id="stopMeterId">
+                <div class="modal-body">
+                    <p class="mb-3" style="font-size:13px; color:var(--text-body);">
+                        Bạn có chắc chắn muốn ngừng sử dụng đồng hồ <strong id="stopMeterCodeText">DH-01</strong>?
+                    </p>
+                    <div class="form-group mb-3">
+                        <label>Chỉ Số Chốt Cuối Cùng (m³) *</label>
+                        <input type="number" id="stopMeterFinalReading" class="form-control" min="0" required placeholder="Chỉ số khi ngừng...">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Ngày Ngừng Sử Dụng *</label>
+                        <input type="date" id="stopMeterDate" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelStopMeterModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-danger"><i class="fa-solid fa-ban"></i> Ngừng Đồng Hồ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: SỬA TRẠM ================= -->
+    <div class="modal-overlay" id="editStationModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-pen-to-square me-2" style="color:#0284c7;"></i>Chỉnh Sửa Thông Tin Trạm</h3>
+                <button class="close-modal" id="btnCloseEditStationModal">&times;</button>
+            </div>
+            <form id="editStationForm">
+                <input type="hidden" id="editStationId">
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>Đơn Vị Cấp Nước (XNCN)</label>
+                        <select id="editStationUnit" class="form-select" required>
+                            <option value="xncn-tp1">XNCN TP1</option>
+                            <option value="xncn-tp2">XNCN TP2</option>
+                            <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                            <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                            <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                            <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                            <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                            <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                            <option value="xncn-song-ma">XNCN Sông Mã</option>
+                            <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                            <option value="xncn-muong-la">XNCN Mường La</option>
+                            <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                        </select>
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Mã Trạm *</label>
+                            <input type="text" id="editStationCode" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tên Trạm Trực Thuộc *</label>
+                            <input type="text" id="editStationName" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Mã Đồng Hồ *</label>
+                            <input type="text" id="editMeterCode" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày Chốt Định Kỳ (1 - 31) *</label>
+                            <input type="number" id="editDefaultCutoffDay" class="form-control" min="1" max="31" required>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Chỉ Số Ban Đầu (m³)</label>
+                        <input type="number" id="editInitialReading" class="form-control" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelEditStationModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: SỬA CHỈ SỐ ĐÃ NHẬP ================= -->
+    <div class="modal-overlay" id="editReadingModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-pen-to-square me-2" style="color:#10b981;"></i>Sửa Bản Ghi Chỉ Số Đã Nhập</h3>
+                <button class="close-modal" id="btnCloseEditReadingModal">&times;</button>
+            </div>
+            <form id="editReadingForm">
+                <input type="hidden" id="editReadingId">
+                <div class="modal-body">
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Ngày Ghi Chỉ Số *</label>
+                            <input type="date" id="editReadingCutoffDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Loại Ghi Nhận *</label>
+                            <select id="editReadingStatus" class="form-select" required>
+                                <option value="locked">Ngày Chốt Tháng (Duy Nhất)</option>
+                                <option value="daily">Chỉ Số Ghi Ngày</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Chỉ Số Cũ (m³) *</label>
+                            <input type="number" id="editOldReading" class="form-control" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Chỉ Số Mới (m³) *</label>
+                            <input type="number" id="editNewReading" class="form-control" min="0" required>
+                        </div>
+                    </div>
+                    <div class="form-grid-3 mb-3">
+                        <div class="form-group">
+                            <label style="font-size:11px;">Nội Bộ / Sục Rửa (m³)</label>
+                            <input type="number" id="editInternalUse" class="form-control" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:11px;">Xả Rửa Mạng (m³)</label>
+                            <input type="number" id="editFlushingUse" class="form-control" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:11px;">Thất Thoát Rò Rỉ (m³)</label>
+                            <input type="number" id="editLeakageLoss" class="form-control" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Ghi Chú</label>
+                        <textarea id="editReadingNotes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelEditReadingModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Cập Nhật Chỉ Số</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: ĐỔI MẬT KHẨU ================= -->
+    <div class="modal-overlay" id="changePasswordModal">
+        <div class="modal-box" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-key me-2" style="color:#0284c7;"></i>Đổi Mật Khẩu Tài Khoản</h3>
+                <button class="close-modal" id="btnCloseChangePasswordModal">&times;</button>
+            </div>
+            <form id="changePasswordForm">
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>Mật Khẩu Mới *</label>
+                        <input type="password" id="newPasswordInput" class="form-control" placeholder="Nhập mật khẩu mới..." required autocomplete="new-password">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Xác Nhận Mật Khẩu Mới *</label>
+                        <input type="password" id="confirmNewPasswordInput" class="form-control" placeholder="Nhập lại mật khẩu mới..." required autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelChangePasswordModal">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Lưu Mật Khẩu Mới</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- APP JAVASCRIPT SCRIPTS -->
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
