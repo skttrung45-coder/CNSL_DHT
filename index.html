@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Ghi Chỉ Số Đồng Hồ Nước & Thống Kê Sản Lượng - 12 XNCN</title>
     
+    <!-- PWA Web App Manifest & Mobile Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cấp Nước SL">
+
     <!-- Google Fonts & FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -153,10 +163,17 @@
             </div>
         </aside>
 
+        <!-- SIDEBAR NAVIGATION OVERLAY FOR MOBILE -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- MAIN CONTENT WRAPPER -->
         <main class="main-wrapper">
             <!-- TOP NAVBAR -->
             <header class="top-header">
+                <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Mở Menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
                 <div class="header-title">
                     <h2 id="pageTitle">Thống Kê Sản Lượng Cấp Nước</h2>
                     <p id="pageSubTitle">Tổng hợp số liệu sản lượng sản xuất và giảm trừ 12 XNCN</p>
@@ -186,6 +203,10 @@
 
                     <button class="btn btn-danger btn-sm" id="logoutBtn" title="Đăng xuất khỏi hệ thống">
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất
+                    </button>
+
+                    <button class="btn btn-success btn-sm btn-pwa-install" id="btnInstallPWA" style="display: none;" title="Cài đặt ứng dụng Cấp Nước Sơn La lên thiết bị">
+                        <i class="fa-solid fa-download me-1"></i> Cài Đặt App
                     </button>
 
                     <button class="theme-toggle-btn" id="themeToggleBtn" title="Chuyển chế độ Sáng / Tối">
@@ -1129,6 +1150,30 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <div class="mobile-bottom-nav" id="mobileBottomNav">
+        <a href="#" class="mobile-nav-item active" data-tab="dashboard-view">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Thống Kê</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-tab="daily-view">
+            <i class="fa-solid fa-calendar-day"></i>
+            <span>Nhật Ký</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-tab="entry-view">
+            <i class="fa-solid fa-file-pen"></i>
+            <span>Nhập Liệu</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-tab="data-view">
+            <i class="fa-solid fa-table-list"></i>
+            <span>Sổ Chỉ Số</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-tab="stations-view">
+            <i class="fa-solid fa-building-flag"></i>
+            <span>Trạm</span>
+        </a>
     </div>
 
     <!-- TOAST CONTAINER -->

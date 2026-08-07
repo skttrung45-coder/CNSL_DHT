@@ -1,0 +1,62 @@
+{
+  "name": "Cấp Nước Sơn La - Quản Lý Sản Lượng Đồng Hồ",
+  "short_name": "Cấp Nước SL",
+  "description": "Hệ thống ghi chỉ số đồng hồ nước & thống kê sản lượng 12 XNCN Cấp nước Sơn La",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "lang": "vi",
+  "categories": ["utilities", "business", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nhập Chỉ Số Ngày",
+      "short_name": "Nhập Liệu",
+      "description": "Cập nhật nhanh chỉ số đồng hồ nước hàng ngày",
+      "url": "./#entry-view",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sổ Chỉ Số & Báo Cáo",
+      "short_name": "Sổ Chỉ Số",
+      "description": "Tra cứu lịch sử chỉ số và xuất báo cáo Excel",
+      "url": "./#data-view",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Thống Kê Sản Lượng",
+      "short_name": "Thống Kê",
+      "description": "Tổng quan sản lượng cấp nước 12 XNCN",
+      "url": "./#dashboard-view",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
