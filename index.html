@@ -532,18 +532,20 @@
 
                                     <div class="form-grid-2 mb-3">
                                         <div class="form-group">
-                                            <label><i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ (m³) *</label>
+                                            <label><i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ - Ngày Hôm Qua (m³) *</label>
                                             <input type="number" id="inputOldReading" class="form-control" min="0" required placeholder="0">
+                                            <small style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm qua</small>
                                         </div>
                                         <div class="form-group">
-                                            <label><i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới (m³) *</label>
+                                            <label><i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới - Ngày Hôm Nay (m³) *</label>
                                             <input type="number" id="inputNewReading" class="form-control" min="0" required placeholder="0">
+                                            <small style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm nay</small>
                                         </div>
                                     </div>
 
                                     <div class="calculation-preview-box mb-3">
                                         <div class="calc-item">
-                                            <label>SẢN LƯỢNG ĐỒNG HỒ (SẢN XUẤT THÔ)</label>
+                                            <label>SẢN LƯỢNG PHÁT RA NGÀY HÔM NAY (CHỈ SỐ HÔM NAY - CHỈ SỐ HÔM QUA)</label>
                                             <div class="val" id="calcGrossVolume">0 m³</div>
                                         </div>
                                     </div>
@@ -1091,11 +1093,11 @@
                     </div>
                     <div class="form-grid-2 mb-3">
                         <div class="form-group">
-                            <label>Chỉ Số Cũ (m³) *</label>
+                            <label>Chỉ Số Cũ - Ngày Hôm Qua (m³) *</label>
                             <input type="number" id="editOldReading" class="form-control" min="0" required>
                         </div>
                         <div class="form-group">
-                            <label>Chỉ Số Mới (m³) *</label>
+                            <label>Chỉ Số Mới - Ngày Hôm Nay (m³) *</label>
                             <input type="number" id="editNewReading" class="form-control" min="0" required>
                         </div>
                     </div>
