@@ -651,6 +651,105 @@
                             </div>
                         </form>
                     </div>
+
+                    <!-- ================= KHU VỰC: QUẢN LÝ TĂNG / GIẢM SẢN LƯỢNG ĐƠN VỊ THEO THÁNG ================= -->
+                    <div class="form-card mt-4" style="margin-top:24px; border-top:3px solid #0284c7;">
+                        <div class="form-section-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:16px;">
+                            <span><i class="fa-solid fa-sliders" style="color:#0284c7;"></i> 3. Nhập Điều Chỉnh Tăng / Giảm Sản Lượng Riêng Của Đơn Vị (Theo Tháng)</span>
+                            <span class="badge badge-info" style="font-size:11px;">Tính thẳng vào Tổng Đơn Vị</span>
+                        </div>
+                        
+                        <form id="unitAdjustmentForm">
+                            <div class="form-grid-3 mb-3">
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-building"></i> Chọn Đơn Vị XNCN *</label>
+                                    <select id="adjUnitId" class="form-select" required>
+                                        <option value="">-- Chọn đơn vị --</option>
+                                        <option value="xncn-tp1">XNCN TP1</option>
+                                        <option value="xncn-tp2">XNCN TP2</option>
+                                        <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                        <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                        <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                        <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                        <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                        <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                        <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                        <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                        <option value="xncn-muong-la">XNCN Mường La</option>
+                                        <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fa-regular fa-calendar-days"></i> Chọn Tháng & Năm Điều Chỉnh *</label>
+                                    <div style="display:flex; gap:8px;">
+                                        <select id="adjMonth" class="form-select" required style="flex:1;">
+                                            <option value="1">Tháng 1</option>
+                                            <option value="2">Tháng 2</option>
+                                            <option value="3">Tháng 3</option>
+                                            <option value="4">Tháng 4</option>
+                                            <option value="5">Tháng 5</option>
+                                            <option value="6">Tháng 6</option>
+                                            <option value="7">Tháng 7</option>
+                                            <option value="8" selected>Tháng 8</option>
+                                            <option value="9">Tháng 9</option>
+                                            <option value="10">Tháng 10</option>
+                                            <option value="11">Tháng 11</option>
+                                            <option value="12">Tháng 12</option>
+                                        </select>
+                                        <input type="number" id="adjYear" class="form-control" value="2026" min="2020" max="2050" required style="width:100px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-list-check"></i> Loại Điều Chỉnh Sản Lượng *</label>
+                                    <select id="adjCategoryType" class="form-select" required>
+                                        <option value="add_other">➕ Tăng sản lượng đơn vị (+)</option>
+                                        <option value="ded_internal">➖ Giảm trừ nước nội bộ / Sục rửa (-)</option>
+                                        <option value="ded_flushing">➖ Giảm trừ xả rửa tuyến ống / Sự cố (-)</option>
+                                        <option value="ded_leakage">➖ Giảm trừ thất thoát & rò rỉ (-)</option>
+                                        <option value="ded_other">➖ Giảm trừ bổ sung khác (-)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-grid-2 mb-3">
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-cubes"></i> Sản Lượng Điều Chỉnh (m³) *</label>
+                                    <input type="number" id="adjVolume" class="form-control" min="1" required placeholder="Nhập số m³...">
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fa-regular fa-comment-dots"></i> Lý Do / Ghi Chú Chi Tiết *</label>
+                                    <input type="text" id="adjNotes" class="form-control" required placeholder="Nhập lý do tăng/giảm sản lượng (vd: Bù sản lượng hợp đồng, xả rửa ống tổng)...">
+                                </div>
+                            </div>
+
+                            <div style="display:flex; justify-content:flex-end;">
+                                <button type="submit" class="btn btn-success" id="btnSaveUnitAdjustment" style="background:#059669; border-color:#059669;">
+                                    <i class="fa-solid fa-floppy-disk"></i> LƯU ĐIỀU CHỈNH ĐƠN VỊ
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="mt-4" style="margin-top:20px;">
+                            <div class="form-section-title font-weight-bold mb-2" style="font-size:13px;"><i class="fa-solid fa-clock-rotate-left"></i> Danh Sách Điều Chỉnh Đơn Vị Hiện Có</div>
+                            <div class="table-responsive">
+                                <table class="data-table" style="font-size:12px;">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Đơn Vị XNCN</th>
+                                            <th>Kỳ Tháng/Năm</th>
+                                            <th>Phân Loại</th>
+                                            <th>Sản Lượng (m³)</th>
+                                            <th>Lý Do / Ghi Chú</th>
+                                            <th>Thao Tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="unitAdjustmentTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ================= 4. DATA TABLE VIEW ================= -->
