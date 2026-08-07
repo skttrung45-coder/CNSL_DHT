@@ -251,12 +251,34 @@
                     <div class="kpi-grid">
                         <div class="kpi-card">
                             <div class="kpi-icon blue">
-                                <i class="fa-solid fa-gauge-high"></i>
+                                <i class="fa-solid fa-circle-plus"></i>
                             </div>
                             <div class="kpi-info">
-                                <h3>Sản Lượng Sản Xuất</h3>
-                                <div class="kpi-value" id="kpiGross">0 m³</div>
-                                <div class="kpi-sub positive"><i class="fa-solid fa-water"></i> Tổng nước bơm bình</div>
+                                <h3>Sản Lượng Trạm (+)</h3>
+                                <div class="kpi-value" id="kpiPlusGross">0 m³</div>
+                                <div class="kpi-sub positive"><i class="fa-solid fa-water"></i> Các trạm sản xuất chính</div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon orange">
+                                <i class="fa-solid fa-circle-minus"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <h3>Sản Lượng Trạm (-)</h3>
+                                <div class="kpi-value" id="kpiMinusGross">0 m³</div>
+                                <div class="kpi-sub negative"><i class="fa-solid fa-right-from-bracket"></i> Trạm cấp ra ngoài / giảm trừ</div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon green">
+                                <i class="fa-solid fa-arrow-up-right-dots"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <h3>Sản Lượng Tăng Thêm (+)</h3>
+                                <div class="kpi-value" id="kpiAdditions">0 m³</div>
+                                <div class="kpi-sub positive"><i class="fa-solid fa-plus"></i> Bù sản lượng / điều chỉnh</div>
                             </div>
                         </div>
 
@@ -271,14 +293,14 @@
                             </div>
                         </div>
 
-                        <div class="kpi-card">
+                        <div class="kpi-card highlight-card">
                             <div class="kpi-icon purple">
-                                <i class="fa-solid fa-sitemap"></i>
+                                <i class="fa-solid fa-chart-line"></i>
                             </div>
                             <div class="kpi-info">
-                                <h3>Trạm Chốt Hoạt Động</h3>
-                                <div class="kpi-value" id="kpiActiveStations">0 Trạm</div>
-                                <div class="kpi-sub" id="kpiActiveUnits">Thuộc 12 XNCN</div>
+                                <h3>Sản Lượng Thực Phát (Net)</h3>
+                                <div class="kpi-value" id="kpiNetVolume" style="color:var(--primary);">0 m³</div>
+                                <div class="kpi-sub" id="kpiActiveStations">0 Trạm (12 XNCN)</div>
                             </div>
                         </div>
                     </div>
@@ -482,8 +504,9 @@
                                 </div>
 
                                 <div>
-                                    <div class="form-section-title">
-                                        <i class="fa-solid fa-calculator"></i> 2. Chỉ Số Đồng Hồ & Sản Lượng Giảm Trừ
+                                    <div class="form-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span><i class="fa-solid fa-calculator"></i> 2. Chỉ Số, Sản Lượng Tăng & Giảm Trừ</span>
+                                        <span id="stationTypeBadgeHint" class="badge badge-info" style="font-size:11px;">Trạm Cộng (+)</span>
                                     </div>
 
                                     <div class="form-grid-2 mb-3">
@@ -499,38 +522,89 @@
 
                                     <div class="calculation-preview-box mb-3">
                                         <div class="calc-item">
-                                            <label>TỔNG SẢN XUẤT (BƠM BÌNH)</label>
+                                            <label>SẢN LƯỢNG ĐỒNG HỒ (SẢN XUẤT THÔ)</label>
                                             <div class="val" id="calcGrossVolume">0 m³</div>
                                         </div>
                                     </div>
 
-                                    <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700;">
-                                        <i class="fa-solid fa-minus-circle style-danger" style="color:#ef4444;"></i> Các Khoản Sản Lượng Giảm Trừ Của Đơn Vị (m³)
-                                    </label>
-
-                                    <div class="form-grid-3 mb-3">
-                                        <div class="form-group">
-                                            <label style="font-size:11px;">Nước Nội Bộ / Sục Rửa</label>
-                                            <input type="number" id="inputInternalUse" class="form-control" min="0" value="0">
-                                        </div>
-                                        <div class="form-group">
-                                            <label style="font-size:11px;">Xả Rửa Mạng / Sự Cố</label>
-                                            <input type="number" id="inputFlushingUse" class="form-control" min="0" value="0">
-                                        </div>
-                                        <div class="form-group">
-                                            <label style="font-size:11px;">Thất Thoát & Rò Rỉ</label>
-                                            <input type="number" id="inputLeakageLoss" class="form-control" min="0" value="0">
+                                    <!-- 3. SẢN LƯỢNG TĂNG THÊM (+) -->
+                                    <div class="addition-block-card mb-3">
+                                        <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700; color:#059669;">
+                                            <i class="fa-solid fa-circle-plus" style="color:#10b981;"></i> Khoản Sản Lượng Tăng Thêm (+) (m³)
+                                        </label>
+                                        <div class="form-grid-2">
+                                            <div class="form-group">
+                                                <input type="number" id="inputAdditionVolume" class="form-control" min="0" value="0" placeholder="Số m³ tăng thêm...">
+                                            </div>
+                                            <div class="form-group">
+                                                <input type="text" id="inputAdditionNote" class="form-control" placeholder="Ghi chú lý do tăng thêm (vd: Nhận nước từ XNCN khác, bù sản lượng)...">
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="calculation-preview-box mb-3" style="background:#fee2e2; border-color:#ef4444;">
+                                    <!-- 4. CÁC KHOẢN GIẢM TRỪ (-) & GHI CHÚ CHI TIẾT -->
+                                    <div class="deduction-block-card mb-3">
+                                        <label class="form-label font-weight-bold mb-2" style="font-size:13px; font-weight:700; color:#dc2626;">
+                                            <i class="fa-solid fa-circle-minus" style="color:#ef4444;"></i> Các Khoản Sản Lượng Giảm Trừ (-) (m³) & Ghi Chú Chi Tiết
+                                        </label>
+
+                                        <div class="deduction-item-row mb-2">
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">1. Nước Nội Bộ / Sục Rửa (m³)</label>
+                                                <input type="number" id="inputInternalUse" class="form-control" min="0" value="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">Ghi Chú Lý Do Nước Nội Bộ</label>
+                                                <input type="text" id="inputInternalUseNote" class="form-control" placeholder="Nhập ghi chú...">
+                                            </div>
+                                        </div>
+
+                                        <div class="deduction-item-row mb-2">
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">2. Thúc Xả Tuyến Ống / Sự Cố (m³)</label>
+                                                <input type="number" id="inputFlushingUse" class="form-control" min="0" value="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">Ghi Chú Tuyến Xả / Lý Do</label>
+                                                <input type="text" id="inputFlushingUseNote" class="form-control" placeholder="Nhập tên tuyến / lý do xả...">
+                                            </div>
+                                        </div>
+
+                                        <div class="deduction-item-row mb-2">
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">3. Thất Thoát & Rò Rỉ (m³)</label>
+                                                <input type="number" id="inputLeakageLoss" class="form-control" min="0" value="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">Ghi Chú Điểm Rò Rỉ / Sự Cố</label>
+                                                <input type="text" id="inputLeakageLossNote" class="form-control" placeholder="Nhập vị trí rò rỉ...">
+                                            </div>
+                                        </div>
+
+                                        <div class="deduction-item-row mb-2">
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">4. Giảm Trừ Bổ Sung Khác (m³)</label>
+                                                <input type="number" id="inputOtherDeduction" class="form-control" min="0" value="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label style="font-size:11px;">Ghi Chú Lý Do Giảm Trừ Khác</label>
+                                                <input type="text" id="inputOtherDeductionNote" class="form-control" placeholder="Nhập lý do giảm trừ khác...">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="calculation-preview-box mb-3" style="background:linear-gradient(135deg, #ecfdf5 0%, #e0f2fe 100%); border-color:#10b981;">
                                         <div class="calc-item">
-                                            <label style="color:#991b1b;">TỔNG GIẢM TRỪ</label>
+                                            <label style="color:#047857;">TỔNG GIẢM TRỪ</label>
                                             <div class="val" id="calcTotalDeduction" style="color:#dc2626;">0 m³</div>
                                         </div>
                                         <div class="calc-item">
-                                            <label style="color:#991b1b;">TỶ LỆ GIẢM TRỪ</label>
-                                            <div class="val" id="calcLossPercent" style="color:#dc2626;">0.00%</div>
+                                            <label style="color:#047857;">TỶ LỆ GIẢM TRỪ</label>
+                                            <div class="val" id="calcLossPercent" style="color:#d97706;">0.00%</div>
+                                        </div>
+                                        <div class="calc-item highlight">
+                                            <label style="color:#0369a1; font-weight:800;">SẢN LƯỢNG THỰC PHÁT (NET)</label>
+                                            <div class="val" id="calcNetVolume" style="color:#0284c7; font-weight:800; font-size:22px;">0 m³</div>
                                         </div>
                                     </div>
 
@@ -594,14 +668,15 @@
                                         <th>STT</th>
                                         <th>Ngày Ghi Chỉ Số</th>
                                         <th>Đơn Vị (XNCN)</th>
-                                        <th>Trạm Trực Thuộc</th>
+                                        <th>Trạm & Loại Trạm</th>
                                         <th>Mã Đồng Hồ</th>
-                                        <th>Chỉ Số Cũ</th>
-                                        <th>Chỉ Số Mới</th>
-                                        <th>Sản Xuất (m³)</th>
-                                        <th>Giảm Trừ (m³)</th>
+                                        <th>Chỉ Số Cũ/Mới</th>
+                                        <th>Sản Xuất Thô (m³)</th>
+                                        <th>Tăng Thêm (+)</th>
+                                        <th>Tổng Giảm Trừ (-)</th>
+                                        <th>Thực Phát (Net) (m³)</th>
                                         <th>Tỷ Lệ Giảm Trừ</th>
-                                        <th>Loại Ghi Nhận</th>
+                                        <th>Ghi Chú Chi Tiết</th>
                                         <th>Thao Tác Quản Lý</th>
                                     </tr>
                                 </thead>
@@ -618,7 +693,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div>
                                 <h3 style="font-size:18px; font-weight:700; color:var(--text-heading);">Danh Sách Các Trạm Chốt Đồng Hồ</h3>
-                                <p style="font-size:13px; color:var(--text-muted);">Quản lý trạm chốt định kỳ và danh sách đồng hồ nước</p>
+                                <p style="font-size:13px; color:var(--text-muted);">Quản lý trạm chốt định kỳ, loại trạm sản lượng và danh sách đồng hồ nước</p>
                             </div>
                             <button class="btn btn-primary" id="btnOpenNewStationModalGlobal">
                                 <i class="fa-solid fa-plus"></i> Tạo Trạm Mới
@@ -631,6 +706,7 @@
                                     <tr>
                                         <th>Mã Trạm</th>
                                         <th>Tên Trạm Trực Thuộc</th>
+                                        <th>Loại Trạm (+ / -)</th>
                                         <th>Đơn Vị Cấp Nước (XNCN)</th>
                                         <th>Đồng Hồ Đang Dùng</th>
                                         <th>Ngày Chốt Định Kỳ</th>
@@ -689,23 +765,32 @@
             </div>
             <form id="newStationForm">
                 <div class="modal-body">
-                    <div class="form-group mb-3">
-                        <label>Thuộc Đơn Vị Cấp Nước (XNCN) *</label>
-                        <select id="modalStationUnit" class="form-select" required>
-                            <option value="">-- Chọn đơn vị cấp nước --</option>
-                            <option value="xncn-tp1">XNCN TP1</option>
-                            <option value="xncn-tp2">XNCN TP2</option>
-                            <option value="xncn-mai-son">XNCN Mai Sơn</option>
-                            <option value="xncn-moc-chau">XNCN Mộc Châu</option>
-                            <option value="xncn-yen-chau">XNCN Yên Châu</option>
-                            <option value="xncn-phu-yen">XNCN Phù Yên</option>
-                            <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
-                            <option value="xncn-bac-yen">XNCN Bắc Yên</option>
-                            <option value="xncn-song-ma">XNCN Sông Mã</option>
-                            <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
-                            <option value="xncn-muong-la">XNCN Mường La</option>
-                            <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
-                        </select>
+                    <div class="form-grid-2 mb-3">
+                        <div class="form-group">
+                            <label>Thuộc Đơn Vị Cấp Nước (XNCN) *</label>
+                            <select id="modalStationUnit" class="form-select" required>
+                                <option value="">-- Chọn đơn vị cấp nước --</option>
+                                <option value="xncn-tp1">XNCN TP1</option>
+                                <option value="xncn-tp2">XNCN TP2</option>
+                                <option value="xncn-mai-son">XNCN Mai Sơn</option>
+                                <option value="xncn-moc-chau">XNCN Mộc Châu</option>
+                                <option value="xncn-yen-chau">XNCN Yên Châu</option>
+                                <option value="xncn-phu-yen">XNCN Phù Yên</option>
+                                <option value="xncn-thuan-chau">XNCN Thuận Châu</option>
+                                <option value="xncn-bac-yen">XNCN Bắc Yên</option>
+                                <option value="xncn-song-ma">XNCN Sông Mã</option>
+                                <option value="xncn-sop-cop">XNCN Sốp Cộp</option>
+                                <option value="xncn-muong-la">XNCN Mường La</option>
+                                <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Loại Trạm Sản Lượng *</label>
+                            <select id="modalStationType" class="form-select" required>
+                                <option value="plus" selected>➕ Trạm Sản Lượng Cộng Vào (+)</option>
+                                <option value="minus">➖ Trạm Sản Lượng Trừ Đi (-)</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-grid-2 mb-3">
                         <div class="form-group">
