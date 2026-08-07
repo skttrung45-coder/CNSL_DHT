@@ -1931,5 +1931,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial Render of Unit Adjustments Table
     renderUnitAdjustmentsTable();
+
+    window.addEventListener('cloud-synced', () => {
+        renderUnitAdjustmentsTable();
+        updateDashboard();
+        renderReadingsTable();
+    });
 });
 

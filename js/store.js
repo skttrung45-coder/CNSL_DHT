@@ -264,6 +264,7 @@ class DataStore {
                 stations: this.getStations(),
                 meters: JSON.parse(localStorage.getItem(STORAGE_KEYS.METERS) || '[]'),
                 readings: JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]'),
+                unit_adjustments: JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]'),
                 users: this.getUsers()
             };
 
