@@ -978,6 +978,42 @@ class DataStore {
         this.syncTableToCloud('readings');
     }
 
+    setMonthlyCutoffReading(readingId) {
+        let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+        const targetRecord = readings.find(r => r.id === readingId);
+        if (!targetRecord) return null;
+
+        readings.forEach(r => {
+            if (r.stationId === targetRecord.stationId && r.year === targetRecord.year && r.month === targetRecord.month) {
+                r.isMonthlyCutoff = false;
+                if (r.status === 'locked') r.status = 'daily';
+            }
+        });
+
+        const idx = readings.findIndex(r => r.id === readingId);
+        if (idx >= 0) {
+            readings[idx].isMonthlyCutoff = true;
+            readings[idx].status = 'locked';
+            localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+            this.syncTableToCloud('readings');
+            return readings[idx];
+        }
+        return null;
+    }
+
+    unlockMonthlyCutoff(readingId) {
+        let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+        const idx = readings.findIndex(r => r.id === readingId);
+        if (idx >= 0) {
+            readings[idx].isMonthlyCutoff = false;
+            readings[idx].status = 'daily';
+            localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+            this.syncTableToCloud('readings');
+            return readings[idx];
+        }
+        return null;
+    }
+
     // --- UNIT ADJUSTMENTS (TĂNG / GIẢM SẢN LƯỢNG ĐƠN VỊ THEO THÁNG) ---
     getUnitAdjustments(filters = {}) {
         let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');

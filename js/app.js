@@ -1235,17 +1235,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const detailedNotes = noteParts.length > 0 ? noteParts.join('<br>') : '-';
 
             let setCutoffBtn = '';
-            if (!r.isMonthlyCutoff) {
+            if (r.isMonthlyCutoff || r.status === 'locked') {
+                setCutoffBtn = `
+                    <button class="btn btn-secondary btn-sm unlock-monthly-cutoff-btn" data-id="${r.id}" style="background:#d97706; border-color:#d97706; color:#fff;" title="Bỏ chốt tháng bản ghi này">
+                        <i class="fa-solid fa-lock-open"></i> Bỏ Chốt
+                    </button>
+                `;
+            } else {
                 setCutoffBtn = `
                     <button class="btn btn-warning btn-sm set-monthly-cutoff-btn" data-id="${r.id}" title="Đặt làm ngày chốt tháng duy nhất">
-                        <i class="fa-solid fa-calendar-check"></i> Đặt Chốt Tháng
+                        <i class="fa-solid fa-lock"></i> Chốt Tháng
                     </button>
                 `;
             }
 
             tr.innerHTML = `
                 <td><strong>${idx + 1}</strong></td>
-                <td><strong>${formatDateVN(r.cutoffDate)}</strong></td>
+                <td><strong>${formatDateVN(r.cutoffDate)} ${r.isMonthlyCutoff ? '<span class="badge badge-info" style="font-size:10px;">Chốt Tháng</span>' : ''}</strong></td>
                 <td><span class="badge badge-info">${unit ? unit.name : r.unitId}</span></td>
                 <td><strong>${station ? station.name : r.stationId}</strong> ${typeBadge}</td>
                 <td><code>${r.meterCode || (station ? station.meterCode : '')}</code></td>
@@ -1277,6 +1283,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(`Đã chuyển ngày ${updated.cutoffDate} làm NGÀY CHỐT THÁNG DUY NHẤT của trạm!`, 'success');
                     renderReadingsTable();
                     updateDashboard();
+                }
+            });
+        });
+
+        // Unlock monthly cutoff click
+        document.querySelectorAll('.unlock-monthly-cutoff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const rec = window.appStore.getReadingById(id);
+                const station = rec ? window.appStore.getStationById(rec.stationId) : null;
+                const stationName = station ? station.name : (rec ? rec.stationId : '');
+
+                if (confirm(`Bạn có chắc chắn muốn BỎ CHỐT THÁNG cho ngày ghi chỉ số ${rec ? formatDateVN(rec.cutoffDate) : ''} của trạm "${stationName}" không?`)) {
+                    const updated = window.appStore.unlockMonthlyCutoff(id);
+                    if (updated) {
+                        showToast(`Đã bỏ chốt tháng cho bản ghi ngày ${formatDateVN(updated.cutoffDate)}!`, 'success');
+                        renderReadingsTable();
+                        updateDashboard();
+                    }
                 }
             });
         });
