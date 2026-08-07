@@ -343,19 +343,9 @@ body {
     gap: 14px;
 }
 
-/* CLOUD SYNC BADGE */
+/* CLOUD SYNC BADGE (HIDDEN AS REQUESTED) */
 .cloud-sync-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #10b981;
-    padding: 6px 12px;
-    border-radius: var(--radius-md);
-    font-size: 0.82rem;
-    font-weight: 600;
-    transition: var(--transition);
+    display: none !important;
 }
 
 .cloud-sync-badge.connecting,
