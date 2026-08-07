@@ -460,9 +460,11 @@
                                     </div>
 
                                     <div class="form-group mb-3">
-                                        <label><i class="fa-regular fa-calendar-days"></i> Chọn Ngày Ghi / Chốt Chỉ Số *</label>
+                                        <label><i class="fa-regular fa-calendar-days"></i> Chọn Ngày Ghi Chỉ Số Mới (Ngày Hôm Nay) *</label>
                                         <input type="date" id="inputCutoffDate" class="form-control" required>
-                                        <small style="color:var(--text-muted); font-size:11px;">Mỗi tháng mỗi trạm có duy nhất 1 ngày làm ngày chốt tháng (có thể chọn đổi lại ngày chốt tùy ý).</small>
+                                        <small id="cutoffDateHint" style="color:var(--primary); font-weight:600; font-size:11px; display:block; margin-top:4px;">
+                                            <i class="fa-solid fa-circle-info"></i> Bạn chọn ngày chốt chỉ số MỚI (ngày hôm nay). Sản lượng phát ra sẽ được ghi nhận và tính cho ngày này.
+                                        </small>
                                     </div>
 
                                     <div class="form-group mb-3">
@@ -532,20 +534,20 @@
 
                                     <div class="form-grid-2 mb-3">
                                         <div class="form-group">
-                                            <label><i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ - Ngày Hôm Qua (m³) *</label>
+                                            <label id="labelOldReading"><i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ - Ngày Hôm Qua (m³) *</label>
                                             <input type="number" id="inputOldReading" class="form-control" min="0" required placeholder="0">
-                                            <small style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm qua</small>
+                                            <small id="hintOldReading" style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm qua</small>
                                         </div>
                                         <div class="form-group">
-                                            <label><i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới - Ngày Hôm Nay (m³) *</label>
+                                            <label id="labelNewReading"><i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới - Ngày Hôm Nay (m³) *</label>
                                             <input type="number" id="inputNewReading" class="form-control" min="0" required placeholder="0">
-                                            <small style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm nay</small>
+                                            <small id="hintNewReading" style="color:var(--text-muted); font-size:11px;">Chỉ số chốt của ngày hôm nay</small>
                                         </div>
                                     </div>
 
                                     <div class="calculation-preview-box mb-3">
                                         <div class="calc-item">
-                                            <label>SẢN LƯỢNG PHÁT RA NGÀY HÔM NAY (CHỈ SỐ HÔM NAY - CHỈ SỐ HÔM QUA)</label>
+                                            <label id="labelGrossVolumeTitle">SẢN LƯỢNG PHÁT RA NGÀY HÔM NAY (CHỈ SỐ HÔM NAY - CHỈ SỐ HÔM QUA)</label>
                                             <div class="val" id="calcGrossVolume">0 m³</div>
                                         </div>
                                     </div>
