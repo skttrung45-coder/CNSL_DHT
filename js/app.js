@@ -1234,16 +1234,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (r.notes) noteParts.push(`<b>Chung:</b> ${r.notes}`);
             const detailedNotes = noteParts.length > 0 ? noteParts.join('<br>') : '-';
 
+            const isLocked = r.isMonthlyCutoff === true || String(r.isMonthlyCutoff).toLowerCase() === 'true' || String(r.status).toLowerCase() === 'locked' || String(r.status).toLowerCase() === 'chốt tháng';
+
             let setCutoffBtn = '';
-            if (r.isMonthlyCutoff || r.status === 'locked') {
+            if (isLocked) {
                 setCutoffBtn = `
-                    <button class="btn btn-secondary btn-sm unlock-monthly-cutoff-btn" data-id="${r.id}" style="background:#d97706; border-color:#d97706; color:#fff;" title="Bỏ chốt tháng bản ghi này">
+                    <button type="button" class="btn btn-warning btn-sm unlock-monthly-cutoff-btn" data-id="${r.id}" style="background:#d97706; border-color:#d97706; color:#fff; font-weight:600;" title="Bỏ chốt tháng bản ghi này">
                         <i class="fa-solid fa-lock-open"></i> Bỏ Chốt
                     </button>
                 `;
             } else {
                 setCutoffBtn = `
-                    <button class="btn btn-warning btn-sm set-monthly-cutoff-btn" data-id="${r.id}" title="Đặt làm ngày chốt tháng duy nhất">
+                    <button type="button" class="btn btn-info btn-sm set-monthly-cutoff-btn" data-id="${r.id}" style="background:#0284c7; border-color:#0284c7; color:#fff; font-weight:600;" title="Đặt làm ngày chốt tháng duy nhất">
                         <i class="fa-solid fa-lock"></i> Chốt Tháng
                     </button>
                 `;
@@ -1251,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td><strong>${idx + 1}</strong></td>
-                <td><strong>${formatDateVN(r.cutoffDate)} ${r.isMonthlyCutoff ? '<span class="badge badge-info" style="font-size:10px;">Chốt Tháng</span>' : ''}</strong></td>
+                <td><strong>${formatDateVN(r.cutoffDate)} ${isLocked ? '<span class="badge badge-success" style="font-size:10px; margin-left:4px;">Chốt Tháng</span>' : ''}</strong></td>
                 <td><span class="badge badge-info">${unit ? unit.name : r.unitId}</span></td>
                 <td><strong>${station ? station.name : r.stationId}</strong> ${typeBadge}</td>
                 <td><code>${r.meterCode || (station ? station.meterCode : '')}</code></td>
