@@ -1591,17 +1591,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 allStations.slice(0, 5).forEach(st => {
                     const meters = window.appStore.getMeters(st.id);
                     const meterCode = meters.length > 0 ? meters[0].meterCode : (st.meterCode || 'DH-01');
+                    const initReading = st.initialReading || 1000;
                     sampleRows.push({
                         'stationId': st.id,
                         'meterCode': meterCode,
                         'cutoffDate': formatDateVN(new Date().toISOString().split('T')[0]),
-                        'newReading': (st.initialReading || 1000) + 50
+                        'oldReading': initReading,
+                        'newReading': initReading + 50
                     });
                 });
             } else {
                 sampleRows.push(
-                    { 'stationId': 'st-xncn-tp1-01', 'meterCode': 'DH-TP1-01', 'cutoffDate': '2026-08-07', 'newReading': 1050 },
-                    { 'stationId': 'st-xncn-tp1-02', 'meterCode': 'DH-TP1-02', 'cutoffDate': '2026-08-07', 'newReading': 2100 }
+                    { 'stationId': 'st-xncn-tp1-01', 'meterCode': 'DH-TP1-01', 'cutoffDate': '2026-08-07', 'oldReading': 1000, 'newReading': 1050 },
+                    { 'stationId': 'st-xncn-tp1-02', 'meterCode': 'DH-TP1-02', 'cutoffDate': '2026-08-07', 'oldReading': 2000, 'newReading': 2100 }
                 );
             }
 
@@ -1655,9 +1657,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         const stIdRaw = findRowVal(row, ['stationId', 'station_id', 'station', 'matram', 'mã trạm']);
                         const mCodeRaw = findRowVal(row, ['meterCode', 'meter_code', 'meter', 'madongho', 'mã đồng hồ']);
                         const cDateRaw = findRowVal(row, ['cutoffDate', 'cutoff_date', 'date', 'ngayghi', 'ngày ghi']);
+                        const oReadingRaw = findRowVal(row, ['oldReading', 'old_reading', 'oldreading', 'chisocu', 'chỉ số cũ']);
                         const nReadingRaw = findRowVal(row, ['newReading', 'new_reading', 'reading', 'chisomoi', 'chỉ số mới']);
 
-                        if (!stIdRaw && !mCodeRaw && !cDateRaw && !nReadingRaw) return; // Empty row
+                        if (!stIdRaw && !mCodeRaw && !cDateRaw && !nReadingRaw && !oReadingRaw) return; // Empty row
 
                         // 1. Resolve Station
                         const searchSt = String(stIdRaw || '').trim();
@@ -1701,15 +1704,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         const meterId = selectedMeter ? selectedMeter.id : null;
                         const meterCode = selectedMeter ? selectedMeter.meterCode : (station.meterCode || searchMeterCode);
 
-                        // 5. Lookup Old Reading
-                        const prevReading = window.appStore.getLatestReadingBeforeDate(station.id, meterId, normDate);
-                        let oldReading = 0;
-                        if (prevReading && prevReading.newReading !== undefined) {
-                            oldReading = prevReading.newReading;
-                        } else if (selectedMeter) {
-                            oldReading = selectedMeter.initialReading;
-                        } else {
-                            oldReading = station.initialReading || 0;
+                        // 5. Resolve Old Reading (Prioritize Excel column, fallback to DB lookup)
+                        let oldReading = null;
+                        if (oReadingRaw !== null && oReadingRaw !== undefined && String(oReadingRaw).trim() !== '') {
+                            const parsedOld = parseInt(oReadingRaw);
+                            if (!isNaN(parsedOld) && parsedOld >= 0) {
+                                oldReading = parsedOld;
+                            }
+                        }
+
+                        if (oldReading === null) {
+                            const prevReading = window.appStore.getLatestReadingBeforeDate(station.id, meterId, normDate);
+                            if (prevReading && prevReading.newReading !== undefined) {
+                                oldReading = prevReading.newReading;
+                            } else if (selectedMeter) {
+                                oldReading = selectedMeter.initialReading;
+                            } else {
+                                oldReading = station.initialReading || 0;
+                            }
                         }
 
                         if (newReading < oldReading) {
