@@ -326,6 +326,7 @@ class DataStore {
         const newStation = {
             id: stationId,
             unitId: stationData.unitId,
+            type: stationData.type || 'plus', // 'plus': Trạm sản lượng cộng (+), 'minus': Trạm sản lượng trừ (-)
             code: stationData.code.trim().toUpperCase(),
             name: stationData.name.trim(),
             meterCode: stationData.meterCode.trim(),
@@ -356,6 +357,7 @@ class DataStore {
             stations[index] = {
                 ...stations[index],
                 unitId: updatedData.unitId || stations[index].unitId,
+                type: updatedData.type || stations[index].type || 'plus',
                 code: updatedData.code ? updatedData.code.trim().toUpperCase() : stations[index].code,
                 name: updatedData.name ? updatedData.name.trim() : stations[index].name,
                 meterCode: updatedData.meterCode ? updatedData.meterCode.trim() : stations[index].meterCode,
@@ -593,14 +595,34 @@ class DataStore {
         
         const oldReading = parseInt(readingData.oldReading) || 0;
         const newReading = parseInt(readingData.newReading) || 0;
-        const grossVolume = newReading - oldReading;
+        const rawVolume = newReading - oldReading;
 
+        const station = this.getStationById(readingData.stationId);
+        const stationType = station ? (station.type || 'plus') : 'plus';
+
+        // Gross production volume: Positive for 'plus' stations, Negative for 'minus' stations
+        const grossVolume = stationType === 'minus' ? -Math.abs(rawVolume) : Math.abs(rawVolume);
+
+        // Additions & Notes
+        const additionVolume = parseInt(readingData.additionVolume) || 0;
+        const additionNote = readingData.additionNote ? readingData.additionNote.trim() : '';
+
+        // Deductions & Notes
         const internalUse = parseInt(readingData.internalUse) || 0;
+        const internalUseNote = readingData.internalUseNote ? readingData.internalUseNote.trim() : '';
         const flushingUse = parseInt(readingData.flushingUse) || 0;
+        const flushingUseNote = readingData.flushingUseNote ? readingData.flushingUseNote.trim() : '';
         const leakageLoss = parseInt(readingData.leakageLoss) || 0;
-        const totalDeduction = internalUse + flushingUse + leakageLoss;
+        const leakageLossNote = readingData.leakageLossNote ? readingData.leakageLossNote.trim() : '';
+        const otherDeduction = parseInt(readingData.otherDeduction) || 0;
+        const otherDeductionNote = readingData.otherDeductionNote ? readingData.otherDeductionNote.trim() : '';
 
-        const lossPercent = grossVolume > 0 ? ((totalDeduction / grossVolume) * 100).toFixed(2) : '0.00';
+        const totalDeduction = internalUse + flushingUse + leakageLoss + otherDeduction;
+        const netVolume = grossVolume + additionVolume - totalDeduction;
+
+        const lossPercent = (grossVolume > 0 || additionVolume > 0) 
+            ? ((totalDeduction / (Math.max(grossVolume, 0) + additionVolume)) * 100).toFixed(2) 
+            : '0.00';
 
         const cutoffDateParts = readingData.cutoffDate.split('-');
         const year = parseInt(cutoffDateParts[0]);
@@ -624,7 +646,6 @@ class DataStore {
 
         const isMonthlyCutoff = readingData.status === 'locked' || readingData.isMonthlyCutoff === true;
 
-        // If this new/edited reading is designated as the monthly cutoff:
         if (isMonthlyCutoff) {
             readings.forEach(r => {
                 if (r.id !== recordId && r.stationId === readingData.stationId && r.year === year && r.month === month) {
@@ -638,6 +659,7 @@ class DataStore {
             id: recordId,
             unitId: readingData.unitId,
             stationId: readingData.stationId,
+            stationType: stationType,
             meterId: meterId || null,
             meterCode: meterCode || '',
             year: year,
@@ -645,11 +667,20 @@ class DataStore {
             cutoffDate: readingData.cutoffDate,
             oldReading: oldReading,
             newReading: newReading,
+            rawVolume: Math.abs(rawVolume),
             grossVolume: grossVolume,
+            additionVolume: additionVolume,
+            additionNote: additionNote,
             internalUse: internalUse,
+            internalUseNote: internalUseNote,
             flushingUse: flushingUse,
+            flushingUseNote: flushingUseNote,
             leakageLoss: leakageLoss,
+            leakageLossNote: leakageLossNote,
+            otherDeduction: otherDeduction,
+            otherDeductionNote: otherDeductionNote,
             totalDeduction: totalDeduction,
+            netVolume: netVolume,
             lossPercent: parseFloat(lossPercent),
             isMonthlyCutoff: isMonthlyCutoff,
             status: isMonthlyCutoff ? 'locked' : (readingData.status || 'daily'),
@@ -680,34 +711,67 @@ class DataStore {
     getAggregatedMetrics(filters = {}) {
         const readings = this.getReadings(filters);
         
+        let totalPlusGross = 0;
+        let totalMinusGross = 0;
         let totalGross = 0;
+        let totalAdditions = 0;
         let totalInternal = 0;
         let totalFlushing = 0;
         let totalLeakage = 0;
+        let totalOtherDeductions = 0;
         let totalDeduction = 0;
+        let totalNetVolume = 0;
 
         const activeStationIds = new Set();
         const activeUnitIds = new Set();
 
         readings.forEach(r => {
-            totalGross += r.grossVolume;
-            totalInternal += r.internalUse;
-            totalFlushing += r.flushingUse;
-            totalLeakage += r.leakageLoss;
-            totalDeduction += r.totalDeduction;
+            const st = this.getStationById(r.stationId);
+            const stType = r.stationType || (st ? st.type : 'plus') || 'plus';
+            
+            const rawVol = Math.abs(r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading));
+            if (stType === 'minus') {
+                totalMinusGross += rawVol;
+            } else {
+                totalPlusGross += rawVol;
+            }
+
+            const addition = r.additionVolume || 0;
+            totalAdditions += addition;
+
+            const internal = r.internalUse || 0;
+            const flushing = r.flushingUse || 0;
+            const leakage = r.leakageLoss || 0;
+            const otherDed = r.otherDeduction || 0;
+            const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
+
+            totalInternal += internal;
+            totalFlushing += flushing;
+            totalLeakage += leakage;
+            totalOtherDeductions += otherDed;
+            totalDeduction += deduction;
+
+            const net = r.netVolume !== undefined ? r.netVolume : (r.grossVolume + addition - deduction);
+            totalNetVolume += net;
 
             activeStationIds.add(r.stationId);
             activeUnitIds.add(r.unitId);
         });
 
-        const overallLossPercent = totalGross > 0 ? ((totalDeduction / totalGross) * 100).toFixed(2) : '0.00';
+        totalGross = totalPlusGross - totalMinusGross;
+        const overallLossPercent = (totalPlusGross + totalAdditions) > 0 ? ((totalDeduction / (totalPlusGross + totalAdditions)) * 100).toFixed(2) : '0.00';
 
         return {
+            totalPlusGross,
+            totalMinusGross,
             totalGross,
+            totalAdditions,
             totalInternal,
             totalFlushing,
             totalLeakage,
+            totalOtherDeductions,
             totalDeduction,
+            totalNetVolume,
             overallLossPercent: parseFloat(overallLossPercent),
             activeStationsCount: activeStationIds.size,
             activeUnitsCount: activeUnitIds.size,
@@ -729,7 +793,9 @@ class DataStore {
                 day: d,
                 dateStr: fullDate,
                 grossVolume: 0,
+                additionVolume: 0,
                 totalDeduction: 0,
+                netVolume: 0,
                 recordsCount: 0,
                 isMonthlyCutoffDay: false,
                 readings: []
@@ -738,8 +804,10 @@ class DataStore {
 
         readings.forEach(r => {
             if (dailyMap[r.cutoffDate]) {
-                dailyMap[r.cutoffDate].grossVolume += r.grossVolume;
-                dailyMap[r.cutoffDate].totalDeduction += r.totalDeduction;
+                dailyMap[r.cutoffDate].grossVolume += (r.grossVolume || 0);
+                dailyMap[r.cutoffDate].additionVolume += (r.additionVolume || 0);
+                dailyMap[r.cutoffDate].totalDeduction += (r.totalDeduction || 0);
+                dailyMap[r.cutoffDate].netVolume += (r.netVolume !== undefined ? r.netVolume : ((r.grossVolume || 0) + (r.additionVolume || 0) - (r.totalDeduction || 0)));
                 dailyMap[r.cutoffDate].recordsCount += 1;
                 if (r.isMonthlyCutoff) dailyMap[r.cutoffDate].isMonthlyCutoffDay = true;
                 dailyMap[r.cutoffDate].readings.push(r);
