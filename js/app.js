@@ -1233,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td><strong>${idx + 1}</strong></td>
-                <td>${r.cutoffDate}</td>
+                <td><strong>${formatDateVN(r.cutoffDate)}</strong></td>
                 <td><span class="badge badge-info">${unit ? unit.name : r.unitId}</span></td>
                 <td><strong>${station ? station.name : r.stationId}</strong> ${typeBadge}</td>
                 <td><code>${r.meterCode || (station ? station.meterCode : '')}</code></td>

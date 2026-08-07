@@ -13,6 +13,38 @@ const STORAGE_KEYS = {
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzxopurfVlw8o2Z-J6Y1QZYim_WW88Yq3fB-soPI7qa-wF6zghjJ_-H_bHag7yfur5i/exec';
 
+function normalizeDateString(dateVal) {
+    if (!dateVal) return '';
+    if (typeof dateVal !== 'string') dateVal = String(dateVal);
+    dateVal = dateVal.trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+        return dateVal;
+    }
+
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateVal)) {
+        const p = dateVal.split('/');
+        const dd = p[0].padStart(2, '0');
+        const mm = p[1].padStart(2, '0');
+        const yyyy = p[2];
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    if (dateVal.includes('T')) {
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+        return dateVal.split('T')[0];
+    }
+
+    return dateVal;
+}
+window.normalizeDateString = normalizeDateString;
+
 class DataStore {
     constructor() {
         this.initStorage();
@@ -71,6 +103,20 @@ class DataStore {
             for (const [key, storageKey] of Object.entries(keysMap)) {
                 if (data[key] && Array.isArray(data[key]) && data[key].length > 0) {
                     isCloudEmpty = false;
+                    if (key === 'readings') {
+                        data[key] = data[key].map(r => {
+                            if (r.cutoffDate) {
+                                const normDate = normalizeDateString(r.cutoffDate);
+                                r.cutoffDate = normDate;
+                                const parts = normDate.split('-');
+                                if (parts.length === 3) {
+                                    r.year = parseInt(parts[0]);
+                                    r.month = parseInt(parts[1]);
+                                }
+                            }
+                            return r;
+                        });
+                    }
                     const currentLocal = localStorage.getItem(storageKey);
                     const newCloudStr = JSON.stringify(data[key]);
                     if (currentLocal !== newCloudStr) {
@@ -496,6 +542,18 @@ class DataStore {
     // --- READINGS & SINGLE MONTHLY CUTOFF ENFORCEMENT ---
     getReadings(filters = {}) {
         let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+        readings = readings.map(r => {
+            if (r.cutoffDate) {
+                const normDate = normalizeDateString(r.cutoffDate);
+                r.cutoffDate = normDate;
+                const parts = normDate.split('-');
+                if (parts.length === 3) {
+                    r.year = parseInt(parts[0]);
+                    r.month = parseInt(parts[1]);
+                }
+            }
+            return r;
+        });
 
         if (filters.year && filters.year !== 'all') {
             readings = readings.filter(r => r.year === parseInt(filters.year));
@@ -656,7 +714,8 @@ class DataStore {
             ? ((totalDeduction / (Math.max(grossVolume, 0) + additionVolume)) * 100).toFixed(2) 
             : '0.00';
 
-        const cutoffDateParts = readingData.cutoffDate.split('-');
+        const normalizedCutoffDate = normalizeDateString(readingData.cutoffDate);
+        const cutoffDateParts = normalizedCutoffDate.split('-');
         const year = parseInt(cutoffDateParts[0]);
         const month = parseInt(cutoffDateParts[1]);
 
@@ -696,7 +755,7 @@ class DataStore {
             meterCode: meterCode || '',
             year: year,
             month: month,
-            cutoffDate: readingData.cutoffDate,
+            cutoffDate: normalizedCutoffDate,
             oldReading: oldReading,
             newReading: newReading,
             rawVolume: rawVolume,
