@@ -341,34 +341,60 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     // 5. Form Live Calculations & Save Action
     // ----------------------------------------------------
+    const inputAdditionVolume = document.getElementById('inputAdditionVolume');
+    const inputAdditionNote = document.getElementById('inputAdditionNote');
     const inputInternalUse = document.getElementById('inputInternalUse');
+    const inputInternalUseNote = document.getElementById('inputInternalUseNote');
     const inputFlushingUse = document.getElementById('inputFlushingUse');
+    const inputFlushingUseNote = document.getElementById('inputFlushingUseNote');
     const inputLeakageLoss = document.getElementById('inputLeakageLoss');
+    const inputLeakageLossNote = document.getElementById('inputLeakageLossNote');
+    const inputOtherDeduction = document.getElementById('inputOtherDeduction');
+    const inputOtherDeductionNote = document.getElementById('inputOtherDeductionNote');
 
     const calcGrossVolume = document.getElementById('calcGrossVolume');
     const calcTotalDeduction = document.getElementById('calcTotalDeduction');
     const calcLossPercent = document.getElementById('calcLossPercent');
+    const calcNetVolume = document.getElementById('calcNetVolume');
+    const stationTypeBadgeHint = document.getElementById('stationTypeBadgeHint');
 
     function calculateFormTotals() {
+        const stationId = inputStationSelect.value;
+        const station = stationId ? window.appStore.getStationById(stationId) : null;
+        const stType = station ? (station.type || 'plus') : 'plus';
+
+        if (stationTypeBadgeHint) {
+            stationTypeBadgeHint.className = stType === 'minus' ? 'badge badge-minus' : 'badge badge-plus';
+            stationTypeBadgeHint.innerText = stType === 'minus' ? '➖ Trạm Trừ (-)' : '➕ Trạm Cộng (+)';
+        }
+
         const oldVal = parseInt(inputOldReading.value) || 0;
         const newVal = parseInt(inputNewReading.value) || 0;
-        const gross = Math.max(0, newVal - oldVal);
+        const rawVol = Math.abs(newVal - oldVal);
+        const gross = stType === 'minus' ? -rawVol : rawVol;
+
+        const addition = parseInt(inputAdditionVolume?.value) || 0;
 
         const internal = parseInt(inputInternalUse.value) || 0;
         const flushing = parseInt(inputFlushingUse.value) || 0;
         const leakage = parseInt(inputLeakageLoss.value) || 0;
-        const totalDeduction = internal + flushing + leakage;
+        const otherDed = parseInt(inputOtherDeduction?.value) || 0;
+        const totalDeduction = internal + flushing + leakage + otherDed;
 
-        const lossPercent = gross > 0 ? ((totalDeduction / gross) * 100).toFixed(2) : '0.00';
+        const netVol = gross + addition - totalDeduction;
+
+        const baseForLoss = (gross > 0 || addition > 0) ? (Math.max(gross, 0) + addition) : 0;
+        const lossPercent = baseForLoss > 0 ? ((totalDeduction / baseForLoss) * 100).toFixed(2) : '0.00';
 
         const fmt = new Intl.NumberFormat('vi-VN');
-        calcGrossVolume.innerText = `${fmt.format(gross)} m³`;
+        calcGrossVolume.innerText = `${fmt.format(gross)} m³ ${stType === 'minus' ? '(Trạm trừ)' : '(Trạm cộng)'}`;
         calcTotalDeduction.innerText = `${fmt.format(totalDeduction)} m³`;
         calcLossPercent.innerText = `${lossPercent}%`;
+        if (calcNetVolume) calcNetVolume.innerText = `${fmt.format(netVol)} m³`;
     }
 
-    [inputOldReading, inputNewReading, inputInternalUse, inputFlushingUse, inputLeakageLoss].forEach(input => {
-        input.addEventListener('input', calculateFormTotals);
+    [inputOldReading, inputNewReading, inputAdditionVolume, inputInternalUse, inputFlushingUse, inputLeakageLoss, inputOtherDeduction].forEach(input => {
+        if (input) input.addEventListener('input', calculateFormTotals);
     });
 
     function processSaveReading(isMonthlyCutoff = false) {
@@ -406,9 +432,16 @@ document.addEventListener('DOMContentLoaded', () => {
             cutoffDate,
             oldReading,
             newReading,
+            additionVolume: parseInt(inputAdditionVolume?.value) || 0,
+            additionNote: inputAdditionNote?.value || '',
             internalUse: parseInt(inputInternalUse.value) || 0,
+            internalUseNote: inputInternalUseNote?.value || '',
             flushingUse: parseInt(inputFlushingUse.value) || 0,
+            flushingUseNote: inputFlushingUseNote?.value || '',
             leakageLoss: parseInt(inputLeakageLoss.value) || 0,
+            leakageLossNote: inputLeakageLossNote?.value || '',
+            otherDeduction: parseInt(inputOtherDeduction?.value) || 0,
+            otherDeductionNote: inputOtherDeductionNote?.value || '',
             isMonthlyCutoff: isMonthlyCutoff,
             status: isMonthlyCutoff ? 'locked' : 'daily',
             notes: document.getElementById('inputNotes').value
@@ -422,9 +455,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(statusMsg, 'success');
 
         inputNewReading.value = '';
+        if (inputAdditionVolume) inputAdditionVolume.value = '0';
+        if (inputAdditionNote) inputAdditionNote.value = '';
         inputInternalUse.value = '0';
+        if (inputInternalUseNote) inputInternalUseNote.value = '';
         inputFlushingUse.value = '0';
+        if (inputFlushingUseNote) inputFlushingUseNote.value = '';
         inputLeakageLoss.value = '0';
+        if (inputLeakageLossNote) inputLeakageLossNote.value = '';
+        if (inputOtherDeduction) inputOtherDeduction.value = '0';
+        if (inputOtherDeductionNote) inputOtherDeductionNote.value = '';
         document.getElementById('inputNotes').value = '';
 
         inputOldReading.value = newReading;
@@ -711,6 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const stationData = {
             unitId: document.getElementById('modalStationUnit').value,
+            type: document.getElementById('modalStationType')?.value || 'plus',
             code: document.getElementById('modalStationCode').value,
             name: document.getElementById('modalStationName').value,
             meterCode: document.getElementById('modalMeterCode').value,
@@ -773,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stationsTableBody.innerHTML = '';
 
         if (stations.length === 0) {
-            stationsTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">Chưa có trạm trực thuộc nào. Bấm nút "Tạo Trạm Mới" để bắt đầu khởi tạo.</td></tr>`;
+            stationsTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-muted);">Chưa có trạm trực thuộc nào. Bấm nút "Tạo Trạm Mới" để bắt đầu khởi tạo.</td></tr>`;
             return;
         }
 
@@ -785,6 +826,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const lockBadge = st.isLocked 
                 ? `<span class="badge badge-danger"><i class="fa-solid fa-lock me-1"></i> Đã Khóa</span>`
                 : `<span class="badge badge-success"><i class="fa-solid fa-lock-open me-1"></i> Mở</span>`;
+
+            const typeBadge = st.type === 'minus'
+                ? `<span class="badge badge-minus">➖ Trừ Đi (-)</span>`
+                : `<span class="badge badge-plus">➕ Cộng Vào (+)</span>`;
 
             const activeMeterText = activeMeter 
                 ? `<strong>${activeMeter.meterCode}</strong>` 
@@ -813,6 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.innerHTML = `
                 <td><code>${st.code}</code></td>
                 <td><strong>${st.name}</strong></td>
+                <td>${typeBadge}</td>
                 <td><span class="badge badge-info">${unit ? unit.name : st.unitId}</span></td>
                 <td>${activeMeterText}</td>
                 <td>Ngày ${st.defaultCutoffDay} hàng tháng</td>
@@ -1005,11 +1051,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const metrics = window.appStore.getAggregatedMetrics(filters);
         const fmt = new Intl.NumberFormat('vi-VN');
 
-        document.getElementById('kpiGross').innerText = `${fmt.format(metrics.totalGross)} m³`;
+        const kpiPlusGross = document.getElementById('kpiPlusGross');
+        const kpiMinusGross = document.getElementById('kpiMinusGross');
+        const kpiAdditions = document.getElementById('kpiAdditions');
+        const kpiNetVolume = document.getElementById('kpiNetVolume');
+
+        if (kpiPlusGross) kpiPlusGross.innerText = `${fmt.format(metrics.totalPlusGross)} m³`;
+        if (kpiMinusGross) kpiMinusGross.innerText = `${fmt.format(metrics.totalMinusGross)} m³`;
+        if (kpiAdditions) kpiAdditions.innerText = `${fmt.format(metrics.totalAdditions)} m³`;
+        if (kpiNetVolume) kpiNetVolume.innerText = `${fmt.format(metrics.totalNetVolume)} m³`;
+
         document.getElementById('kpiDeduction').innerText = `${fmt.format(metrics.totalDeduction)} m³`;
         document.getElementById('kpiLossRate').innerText = `Tỷ lệ giảm trừ: ${metrics.overallLossPercent}%`;
-        document.getElementById('kpiActiveStations').innerText = `${metrics.activeStationsCount} Trạm`;
-        document.getElementById('kpiActiveUnits').innerText = filters.unitId !== 'all' ? '1 XNCN' : `${metrics.activeUnitsCount || 12} XNCN`;
+        document.getElementById('kpiActiveStations').innerText = `${metrics.activeStationsCount} Trạm (12 XNCN)`;
 
         window.appCharts.refreshAllCharts(filters);
     }
@@ -1031,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         readingsTableBody.innerHTML = '';
 
         if (readings.length === 0) {
-            readingsTableBody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 24px; color:var(--text-muted);">Không tìm thấy dữ liệu chỉ số đồng hồ phù hợp.</td></tr>`;
+            readingsTableBody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding: 24px; color:var(--text-muted);">Không tìm thấy dữ liệu chỉ số đồng hồ phù hợp.</td></tr>`;
             return;
         }
 
@@ -1040,6 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
         readings.forEach((r, idx) => {
             const unit = window.appStore.getUnitById(r.unitId);
             const station = window.appStore.getStationById(r.stationId);
+            const stType = r.stationType || (station ? station.type : 'plus') || 'plus';
 
             const tr = document.createElement('tr');
 
@@ -1047,14 +1102,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (r.lossPercent > 10) badgeClass = 'badge-danger';
             else if (r.lossPercent > 6) badgeClass = 'badge-warning';
 
-            const statusBadge = r.isMonthlyCutoff 
-                ? `<span class="badge badge-success"><i class="fa-solid fa-calendar-check me-1"></i> Chốt Tháng</span>`
-                : `<span class="badge badge-info"><i class="fa-solid fa-calendar-day me-1"></i> Ghi Ngày</span>`;
+            const typeBadge = stType === 'minus' 
+                ? `<span class="badge badge-minus" style="font-size:10px;">➖ Trừ</span>` 
+                : `<span class="badge badge-plus" style="font-size:10px;">➕ Cộng</span>`;
+
+            // Build detailed note text
+            let noteParts = [];
+            if (r.additionVolume > 0 && r.additionNote) noteParts.push(`<b>Tăng:</b> ${r.additionNote}`);
+            if (r.internalUse > 0 && r.internalUseNote) noteParts.push(`<b>Nội bộ:</b> ${r.internalUseNote}`);
+            if (r.flushingUse > 0 && r.flushingUseNote) noteParts.push(`<b>Thúc xả:</b> ${r.flushingUseNote}`);
+            if (r.leakageLoss > 0 && r.leakageLossNote) noteParts.push(`<b>Rò rỉ:</b> ${r.leakageLossNote}`);
+            if (r.otherDeduction > 0 && r.otherDeductionNote) noteParts.push(`<b>Khác:</b> ${r.otherDeductionNote}`);
+            if (r.notes) noteParts.push(`<b>Chung:</b> ${r.notes}`);
+            const detailedNotes = noteParts.length > 0 ? noteParts.join('<br>') : '-';
 
             let setCutoffBtn = '';
             if (!r.isMonthlyCutoff) {
                 setCutoffBtn = `
-                    <button class="btn btn-warning btn-sm set-monthly-cutoff-btn" data-id="${r.id}" title="Đặt ngày này làm ngày chốt tháng duy nhất của trạm">
+                    <button class="btn btn-warning btn-sm set-monthly-cutoff-btn" data-id="${r.id}" title="Đặt làm ngày chốt tháng duy nhất">
                         <i class="fa-solid fa-calendar-check"></i> Đặt Chốt Tháng
                     </button>
                 `;
@@ -1064,20 +1129,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><strong>${idx + 1}</strong></td>
                 <td>${r.cutoffDate}</td>
                 <td><span class="badge badge-info">${unit ? unit.name : r.unitId}</span></td>
-                <td><strong>${station ? station.name : r.stationId}</strong></td>
+                <td><strong>${station ? station.name : r.stationId}</strong> ${typeBadge}</td>
                 <td><code>${r.meterCode || (station ? station.meterCode : '')}</code></td>
-                <td>${fmt.format(r.oldReading)}</td>
-                <td>${fmt.format(r.newReading)}</td>
-                <td><strong style="color:var(--primary);">${fmt.format(r.grossVolume)}</strong></td>
+                <td><small>${fmt.format(r.oldReading)} ➔ ${fmt.format(r.newReading)}</small></td>
+                <td><strong style="color:${stType === 'minus' ? 'var(--warning)' : 'var(--primary)'};">${fmt.format(r.grossVolume)}</strong></td>
+                <td><span style="color:#059669; font-weight:600;">${r.additionVolume ? '+' + fmt.format(r.additionVolume) : '0'}</span></td>
                 <td><span style="color:var(--danger);">${fmt.format(r.totalDeduction)}</span></td>
+                <td><strong style="color:#0284c7;">${fmt.format(r.netVolume !== undefined ? r.netVolume : (r.grossVolume + (r.additionVolume || 0) - r.totalDeduction))}</strong></td>
                 <td><span class="badge ${badgeClass}">${r.lossPercent}%</span></td>
-                <td>${statusBadge}</td>
+                <td><small style="font-size:11px;">${detailedNotes}</small></td>
                 <td>
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">
                         ${setCutoffBtn}
-                        <button class="btn btn-secondary btn-sm edit-reading-btn" data-id="${r.id}" title="Sửa chỉ số">
-                            <i class="fa-solid fa-pen"></i> Sửa
-                        </button>
                         <button class="btn btn-danger btn-sm delete-reading-btn" data-id="${r.id}" title="Xóa bản ghi chỉ số">
                             <i class="fa-solid fa-trash"></i> Xóa
                         </button>
