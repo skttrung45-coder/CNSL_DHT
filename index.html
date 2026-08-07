@@ -634,6 +634,9 @@
                                     </div>
 
                                     <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                                        <button type="button" class="btn btn-primary" id="btnOpenBatchImportModalEntry" style="background:#0284c7; border-color:#0284c7;">
+                                            <i class="fa-solid fa-file-import"></i> Nhập Hàng Loạt (Excel)
+                                        </button>
                                         <button type="button" class="btn btn-secondary" id="btnResetForm">
                                             <i class="fa-solid fa-rotate"></i> Làm Mới
                                         </button>
@@ -676,7 +679,10 @@
                                     <option value="xncn-quynh-nhai">XNCN Quỳnh Nhai</option>
                                 </select>
                             </div>
-                            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                            <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                                <button class="btn btn-primary" id="btnOpenBatchImportModalData" style="background:#0284c7; border-color:#0284c7;">
+                                    <i class="fa-solid fa-file-import"></i> Nhập Hàng Loạt (Excel)
+                                </button>
                                 <button class="btn btn-success" id="exportExcelBtn">
                                     <i class="fa-solid fa-file-excel"></i> Xuất File Excel (XLSX)
                                 </button>
@@ -1152,7 +1158,49 @@
                     <button type="button" class="btn btn-secondary" id="btnCancelChangePasswordModal">Hủy Bỏ</button>
                     <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Lưu Mật Khẩu Mới</button>
                 </div>
-            </form>
+    <!-- ================= MODAL: NHẬP CHỈ SỐ HÀNG LOẠT TỪ FILE EXCEL ================= -->
+    <div class="modal-overlay" id="batchImportModal">
+        <div class="modal-card" style="max-width: 800px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:#fff;">
+                <div class="modal-title">
+                    <i class="fa-solid fa-file-import"></i> Ghi Chỉ Số Đồng Hồ Hàng Loạt Từ File Excel (.xlsx)
+                </div>
+                <button type="button" class="modal-close" id="btnCloseBatchImportModal" style="color:#fff;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3" style="background:#f0f9ff; border:1px solid #0284c7; color:#0369a1; padding:12px; border-radius:8px; font-size:13px;">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    File Excel nhập liệu bắt buộc gồm 4 cột chính: <strong>stationId</strong>, <strong>meterCode</strong>, <strong>cutoffDate</strong>, <strong>newReading</strong>.
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;" class="mb-3">
+                    <div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnDownloadImportTemplate" style="border:1px solid #0284c7; color:#0284c7; font-weight:600;">
+                            <i class="fa-solid fa-file-arrow-down me-1"></i> Tải File Mẫu Excel (.xlsx)
+                        </button>
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted);">
+                        Hệ thống tự động tra chỉ số cũ gần nhất và tính sản lượng phát ra.
+                    </div>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold mb-1"><i class="fa-solid fa-cloud-arrow-up"></i> Chọn File Excel (.xlsx / .xls) *</label>
+                    <input type="file" id="batchImportFileInput" class="form-control" accept=".xlsx, .xls">
+                </div>
+
+                <div id="batchImportResultContainer" style="display:none;" class="mt-3">
+                    <div class="form-section-title"><i class="fa-solid fa-list-check"></i> Xem Trước Kết Quả Đọc File</div>
+                    <div id="batchImportSummary" class="mb-2 font-weight-bold" style="font-size:14px;"></div>
+                    <div id="batchImportErrorList" style="max-height:180px; overflow-y:auto; background:#fff1f2; border:1px solid #fecdd3; padding:10px; border-radius:6px; font-size:12px; color:#be123c;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnCancelBatchImportModal">Đóng</button>
+                <button type="button" class="btn btn-success" id="btnConfirmBatchImport" disabled>
+                    <i class="fa-solid fa-check"></i> XÁC NHẬN LƯU VÀO HỆ THỐNG
+                </button>
+            </div>
         </div>
     </div>
 
