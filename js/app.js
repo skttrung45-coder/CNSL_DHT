@@ -356,11 +356,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const inputCutoffDate = document.getElementById('inputCutoffDate');
 
+    function formatDateVN(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return dateStr;
+    }
+
+    function getYesterdayDateStr(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return '';
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        d.setDate(d.getDate() - 1);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
     function updateOldReadingFromDateAndMeter() {
         const stationId = inputStationSelect.value;
         const meterId = inputMeterSelect.value;
         const cutoffDate = inputCutoffDate.value;
         if (!stationId) return;
+
+        const selDateVN = formatDateVN(cutoffDate);
+        const yestDateStr = getYesterdayDateStr(cutoffDate);
+        const yestDateVN = formatDateVN(yestDateStr);
+
+        const labelOldReading = document.getElementById('labelOldReading');
+        const labelNewReading = document.getElementById('labelNewReading');
+        const labelGrossVolumeTitle = document.getElementById('labelGrossVolumeTitle');
+        const cutoffDateHint = document.getElementById('cutoffDateHint');
+
+        if (labelOldReading) labelOldReading.innerHTML = `<i class="fa-solid fa-arrow-left"></i> Chỉ Số Cũ - Ngày ${yestDateVN || 'Hôm Qua'} (m³) *`;
+        if (labelNewReading) labelNewReading.innerHTML = `<i class="fa-solid fa-arrow-right"></i> Chỉ Số Mới - Ngày ${selDateVN || 'Hôm Nay'} (m³) *`;
+        if (labelGrossVolumeTitle) labelGrossVolumeTitle.innerText = `SẢN LƯỢNG PHÁT RA NGÀY ${selDateVN || 'HÔM NAY'} (CHỈ SỐ NGÀY ${selDateVN || 'HÔM NAY'} - CHỈ SỐ NGÀY ${yestDateVN || 'HÔM QUA'})`;
+        if (cutoffDateHint) cutoffDateHint.innerHTML = `<i class="fa-solid fa-circle-info"></i> Bạn đang chọn ngày chốt chỉ số <strong>${selDateVN}</strong>. Sản lượng phát ra (chỉ số mới ngày ${selDateVN} - chỉ số cũ ngày ${yestDateVN}) sẽ được ghi nhận và tính cho <strong>ngày ${selDateVN}</strong>.`;
 
         const selectedMeter = window.appStore.getMeterById(meterId);
         if (selectedMeter) {
