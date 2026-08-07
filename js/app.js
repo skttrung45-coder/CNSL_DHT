@@ -149,8 +149,39 @@ document.addEventListener('DOMContentLoaded', () => {
         'users-view': { title: 'Phê Duyệt & Quản Lý Tài Khoản', sub: 'Quản trị viên phê duyệt tài khoản người dùng đăng ký mới' }
     };
 
+    const mobileBottomNavItems = document.querySelectorAll('.mobile-nav-item');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const sidebar = document.querySelector('.sidebar');
+
+    function closeMobileSidebar() {
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+    }
+
+    function openMobileSidebar() {
+        if (sidebar) sidebar.classList.add('mobile-open');
+        if (sidebarOverlay) sidebarOverlay.classList.add('active');
+    }
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', openMobileSidebar);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileSidebar);
+    }
+
     function switchTab(targetViewId) {
         navItems.forEach(item => {
+            if (item.getAttribute('data-tab') === targetViewId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        mobileBottomNavItems.forEach(item => {
             if (item.getAttribute('data-tab') === targetViewId) {
                 item.classList.add('active');
             } else {
@@ -171,6 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pageSubTitle.innerText = viewTitles[targetViewId].sub;
         }
 
+        closeMobileSidebar();
+
         if (targetViewId === 'dashboard-view') {
             updateDashboard();
         } else if (targetViewId === 'daily-view') {
@@ -185,6 +218,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabId = item.getAttribute('data-tab');
+            switchTab(tabId);
+        });
+    });
+
+    mobileBottomNavItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const tabId = item.getAttribute('data-tab');
@@ -1374,6 +1415,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (targetTab === 'users-view') renderUsersTable();
             }
         }
+    });
+
+    // ----------------------------------------------------
+    // 15. Progressive Web App (PWA) Registration & Install Prompt
+    // ----------------------------------------------------
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then((reg) => {
+                    console.log('[PWA] Service Worker registered successfully with scope:', reg.scope);
+                })
+                .catch((err) => {
+                    console.warn('[PWA] Service Worker registration failed:', err);
+                });
+        });
+    }
+
+    let deferredPWAInstallPrompt = null;
+    const btnInstallPWA = document.getElementById('btnInstallPWA');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent default browser install banner
+        e.preventDefault();
+        deferredPWAInstallPrompt = e;
+
+        if (btnInstallPWA) {
+            btnInstallPWA.style.display = 'inline-flex';
+        }
+    });
+
+    if (btnInstallPWA) {
+        btnInstallPWA.addEventListener('click', async () => {
+            if (!deferredPWAInstallPrompt) {
+                showToast('Ứng dụng đã được cài đặt hoặc trình duyệt không hỗ trợ nhắc cài đặt!', 'info');
+                return;
+            }
+
+            deferredPWAInstallPrompt.prompt();
+            const { outcome } = await deferredPWAInstallPrompt.userChoice;
+
+            if (outcome === 'accepted') {
+                showToast('Cài đặt ứng dụng Cấp Nước Sơn La thành công!', 'success');
+            } else {
+                showToast('Đã hủy cài đặt ứng dụng PWA.', 'info');
+            }
+
+            deferredPWAInstallPrompt = null;
+            btnInstallPWA.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('appinstalled', () => {
+        console.log('[PWA] App installed successfully');
+        showToast('Chúc mừng! Đã cài đặt ứng dụng Cấp Nước Sơn La thành công!', 'success');
+        if (btnInstallPWA) btnInstallPWA.style.display = 'none';
     });
 });
 
