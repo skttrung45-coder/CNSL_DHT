@@ -803,6 +803,63 @@ body {
     background-color: rgba(2, 132, 199, 0.04);
 }
 
+/* Daily 31-Day x 12-Month Matrix Table Styling */
+.daily-matrix-table {
+    font-size: 12px;
+}
+.daily-matrix-table th,
+.daily-matrix-table td {
+    padding: 10px 12px;
+    text-align: center;
+    white-space: nowrap;
+    border-right: 1px solid var(--border-color);
+}
+.daily-matrix-table th:first-child,
+.daily-matrix-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--bg-surface);
+    font-weight: 700;
+    text-align: left;
+    border-right: 2px solid var(--border-color);
+    box-shadow: 3px 0 6px rgba(0,0,0,0.04);
+}
+.daily-matrix-table th:first-child {
+    background: var(--bg-main);
+    z-index: 4;
+}
+.daily-matrix-table th:last-child,
+.daily-matrix-table td:last-child {
+    position: static !important;
+    box-shadow: none !important;
+    background: transparent;
+    border-left: 2px solid var(--border-color);
+}
+.daily-matrix-table th.active-month-col {
+    background-color: #0284c7 !important;
+    color: #ffffff !important;
+}
+.daily-matrix-table td.active-month-col {
+    background-color: rgba(2, 132, 199, 0.08) !important;
+    font-weight: 600;
+}
+.daily-matrix-table td.invalid-day-cell {
+    color: #cbd5e1 !important;
+    background-color: rgba(248, 250, 252, 0.6);
+}
+.daily-matrix-table tfoot tr {
+    background-color: var(--bg-main);
+    border-top: 2px solid var(--border-color);
+}
+.daily-matrix-table tfoot td {
+    font-weight: 700;
+}
+.daily-matrix-table tfoot td.matrix-grand-total {
+    color: #0284c7;
+    font-size: 13px;
+}
+
 /* Status Badges */
 .badge {
     display: inline-flex;
