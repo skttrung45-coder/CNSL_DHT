@@ -2,15 +2,15 @@
    SERVICE WORKER - CẤP NƯỚC SƠN LA PWA
    ========================================================================== */
 
-const CACHE_NAME = 'capnuocsl-pwa-v7';
+const CACHE_NAME = 'capnuocsl-pwa-v8';
 const STATIC_ASSETS = [
   './',
   'index.html',
-  'css/style.css',
-  'js/data.js',
-  'js/store.js',
-  'js/charts.js',
-  'js/app.js',
+  'css/style.css?v=8',
+  'js/data.js?v=8',
+  'js/store.js?v=8',
+  'js/charts.js?v=8',
+  'js/app.js?v=8',
   'manifest.json',
   'favicon.ico',
   'icons/icon-192.png',
