@@ -1771,8 +1771,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
+                        // Helper to safely parse numeric values from Excel string/number
+                        const cleanExcelNumber = (val) => {
+                            if (val === null || val === undefined) return NaN;
+                            if (typeof val === 'number') return Math.floor(val);
+                            let str = String(val).trim();
+                            if (!str) return NaN;
+                            str = str.replace(/[\,\s]/g, '');
+                            const num = parseFloat(str);
+                            return isNaN(num) ? NaN : Math.floor(num);
+                        };
+
                         // 3. Resolve New Reading
-                        const newReading = parseInt(nReadingRaw);
+                        const newReading = cleanExcelNumber(nReadingRaw);
                         if (isNaN(newReading) || newReading < 0) {
                             errorMsgs.push(`Dòng ${rowNum}: Chỉ số mới "${nReadingRaw}" không phải số hợp lệ.`);
                             return;
@@ -1791,7 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // 5. Resolve Old Reading (Prioritize Excel column, fallback to DB lookup)
                         let oldReading = null;
                         if (oReadingRaw !== null && oReadingRaw !== undefined && String(oReadingRaw).trim() !== '') {
-                            const parsedOld = parseInt(oReadingRaw);
+                            const parsedOld = cleanExcelNumber(oReadingRaw);
                             if (!isNaN(parsedOld) && parsedOld >= 0) {
                                 oldReading = parsedOld;
                             }
