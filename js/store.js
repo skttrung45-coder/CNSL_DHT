@@ -1269,6 +1269,68 @@ class DataStore {
 
         return Object.values(dailyMap).sort((a, b) => a.dateStr.localeCompare(b.dateStr));
     }
+
+    getYearlyDailyProductionMatrix(year = 2026, unitId = 'all', stationId = 'all') {
+        const targetYear = parseInt(year, 10) || 2026;
+        const readings = this.getReadings({ year: targetYear, unitId, stationId });
+
+        const matrix = Array.from({ length: 31 }, (_, dIdx) => ({
+            day: dIdx + 1,
+            months: Array(12).fill(0),
+            totalDayVolume: 0
+        }));
+
+        const monthTotals = Array(12).fill(0);
+        const monthActiveDays = Array(12).fill(0);
+        const monthMaxDays = Array.from({ length: 12 }, (_, mIdx) => new Date(targetYear, mIdx + 1, 0).getDate());
+
+        readings.forEach(r => {
+            if (!r.cutoffDate) return;
+            const norm = normalizeDateString(r.cutoffDate);
+            const parts = norm.split('-');
+            if (parts.length === 3) {
+                const rYear = parseInt(parts[0], 10);
+                const rMonth = parseInt(parts[1], 10);
+                const rDay = parseInt(parts[2], 10);
+
+                if (rYear === targetYear && rMonth >= 1 && rMonth <= 12 && rDay >= 1 && rDay <= 31) {
+                    const dayIdx = rDay - 1;
+                    const monthIdx = rMonth - 1;
+                    const vol = r.grossVolume || 0;
+
+                    matrix[dayIdx].months[monthIdx] += vol;
+                    matrix[dayIdx].totalDayVolume += vol;
+                    monthTotals[monthIdx] += vol;
+                }
+            }
+        });
+
+        for (let m = 0; m < 12; m++) {
+            let activeDays = 0;
+            for (let d = 0; d < monthMaxDays[m]; d++) {
+                if (matrix[d].months[m] > 0) activeDays++;
+            }
+            monthActiveDays[m] = activeDays;
+        }
+
+        const monthAverages = monthTotals.map((tot, mIdx) => {
+            const days = monthMaxDays[mIdx];
+            return days > 0 ? (tot / days) : 0;
+        });
+
+        const totalYearVolume = monthTotals.reduce((a, b) => a + b, 0);
+
+        return {
+            year: targetYear,
+            matrix,
+            monthTotals,
+            monthAverages,
+            monthMaxDays,
+            monthActiveDays,
+            totalYearVolume
+        };
+    }
 }
 
 window.appStore = new DataStore();
+

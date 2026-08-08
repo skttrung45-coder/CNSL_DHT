@@ -1125,31 +1125,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.appCharts.renderDailyProductionChart('dailyProductionChartCanvas', year, month, unitId, stationId);
 
-        const dailyData = window.appStore.getDailyProductionBreakdown(year, month, unitId, stationId);
+        const data = window.appStore.getYearlyDailyProductionMatrix(year, unitId, stationId);
         const fmt = new Intl.NumberFormat('vi-VN');
+        const dailyTableBody = document.getElementById('dailyTableBody');
+        const dailyTableFooter = document.getElementById('dailyTableFooter');
+        const headerRow = document.getElementById('dailyTableHeaderRow');
+
+        if (!dailyTableBody) return;
+
+        if (headerRow) {
+            const ths = headerRow.querySelectorAll('th');
+            ths.forEach((th, idx) => {
+                if (idx === month) {
+                    th.classList.add('active-month-col');
+                } else {
+                    th.classList.remove('active-month-col');
+                }
+            });
+        }
+
         dailyTableBody.innerHTML = '';
 
-        dailyData.forEach(d => {
+        data.matrix.forEach(row => {
             const tr = document.createElement('tr');
-            const lossPercent = d.grossVolume > 0 ? ((d.totalDeduction / d.grossVolume) * 100).toFixed(2) : '0.00';
             
-            const statusText = d.isMonthlyCutoffDay 
-                ? `<span class="badge badge-success"><i class="fa-solid fa-calendar-check me-1"></i> Ngày Chốt Tháng (${d.recordsCount})</span>` 
-                : (d.recordsCount > 0 
-                    ? `<span class="badge badge-info"><i class="fa-solid fa-calendar-day me-1"></i> Ghi Ngày (${d.recordsCount})</span>`
-                    : `<span class="badge badge-warning">Chưa Ghi</span>`);
+            const dayNum = row.day < 10 ? `0${row.day}` : `${row.day}`;
+            let cellsHtml = `<td><strong>Ngày ${dayNum}</strong></td>`;
 
-            tr.innerHTML = `
-                <td><strong>Ngày ${d.day}</strong></td>
-                <td>${d.dateStr}</td>
-                <td>${d.recordsCount} Bản Ghi</td>
-                <td><strong style="color:var(--primary);">${fmt.format(d.grossVolume)} m³</strong></td>
-                <td><span style="color:var(--danger);">${fmt.format(d.totalDeduction)} m³</span></td>
-                <td>${lossPercent}%</td>
-                <td>${statusText}</td>
-            `;
+            for (let m = 0; m < 12; m++) {
+                const isSelectedMonth = (m + 1) === month;
+                const activeClass = isSelectedMonth ? ' active-month-col' : '';
+                const maxDays = data.monthMaxDays[m];
+
+                if (row.day > maxDays) {
+                    cellsHtml += `<td class="invalid-day-cell${activeClass}">-</td>`;
+                } else {
+                    const vol = row.months[m];
+                    if (vol > 0) {
+                        cellsHtml += `<td class="matrix-vol-cell${activeClass}"><strong style="color:var(--primary);">${fmt.format(vol)}</strong></td>`;
+                    } else {
+                        cellsHtml += `<td class="matrix-zero-cell${activeClass}"><span style="color:#94a3b8;">0</span></td>`;
+                    }
+                }
+            }
+
+            const dayTotalHtml = row.totalDayVolume > 0 
+                ? `<strong style="color:#0284c7;">${fmt.format(row.totalDayVolume)}</strong>` 
+                : `<span style="color:#94a3b8;">0</span>`;
+            cellsHtml += `<td class="matrix-total-cell">${dayTotalHtml}</td>`;
+
+            tr.innerHTML = cellsHtml;
             dailyTableBody.appendChild(tr);
         });
+
+        if (dailyTableFooter) {
+            dailyTableFooter.innerHTML = '';
+
+            const trTotal = document.createElement('tr');
+            let totalRowHtml = `<td><strong>TỔNG THÁNG (m³)</strong></td>`;
+            for (let m = 0; m < 12; m++) {
+                const isSelectedMonth = (m + 1) === month;
+                const activeClass = isSelectedMonth ? ' active-month-col' : '';
+                const mTotal = data.monthTotals[m];
+                totalRowHtml += `<td class="${activeClass}"><strong>${fmt.format(mTotal)}</strong></td>`;
+            }
+            totalRowHtml += `<td class="matrix-grand-total"><strong>${fmt.format(data.totalYearVolume)}</strong></td>`;
+            trTotal.innerHTML = totalRowHtml;
+            dailyTableFooter.appendChild(trTotal);
+
+            const trAvg = document.createElement('tr');
+            let avgRowHtml = `<td><strong style="color:var(--text-muted); font-size:11px;">T.BÌNH/NGÀY</strong></td>`;
+            for (let m = 0; m < 12; m++) {
+                const isSelectedMonth = (m + 1) === month;
+                const activeClass = isSelectedMonth ? ' active-month-col' : '';
+                const mAvg = data.monthAverages[m];
+                avgRowHtml += `<td class="${activeClass}" style="font-size:11px; color:var(--text-muted);">${fmt.format(Math.round(mAvg))}</td>`;
+            }
+            const overallAvg = (data.totalYearVolume / 365);
+            avgRowHtml += `<td style="font-size:11px; color:var(--text-muted);"><strong>${fmt.format(Math.round(overallAvg))}</strong></td>`;
+            trAvg.innerHTML = avgRowHtml;
+            dailyTableFooter.appendChild(trAvg);
+        }
     }
 
     // ----------------------------------------------------
