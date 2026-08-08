@@ -137,6 +137,52 @@ class DataStore {
         if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(window.INITIAL_DATA.users));
         }
+
+        this.cleanStoredData();
+    }
+
+    cleanStoredData() {
+        try {
+            let readings = JSON.parse(localStorage.getItem(STORAGE_KEYS.READINGS) || '[]');
+            if (Array.isArray(readings) && readings.length > 0) {
+                let modified = false;
+                readings.forEach(r => {
+                    ['oldReading', 'newReading', 'rawVolume', 'grossVolume', 'additionVolume', 'internalUse', 'flushingUse', 'leakageLoss', 'otherDeduction', 'totalDeduction', 'netVolume'].forEach(key => {
+                        if (r[key] !== undefined && typeof r[key] === 'string') {
+                            r[key] = parseFloat(r[key]) || 0;
+                            modified = true;
+                        }
+                    });
+                });
+                if (modified) {
+                    localStorage.setItem(STORAGE_KEYS.READINGS, JSON.stringify(readings));
+                }
+            }
+
+            let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
+            if (Array.isArray(adjustments) && adjustments.length > 0) {
+                let modified = false;
+                adjustments.forEach(a => {
+                    if (a.volume !== undefined && typeof a.volume === 'string') {
+                        a.volume = parseFloat(a.volume) || 0;
+                        modified = true;
+                    }
+                    if (a.year !== undefined && typeof a.year === 'string') {
+                        a.year = parseInt(a.year, 10) || 2026;
+                        modified = true;
+                    }
+                    if (a.month !== undefined && typeof a.month === 'string') {
+                        a.month = parseInt(a.month, 10) || 1;
+                        modified = true;
+                    }
+                });
+                if (modified) {
+                    localStorage.setItem(STORAGE_KEYS.UNIT_ADJUSTMENTS, JSON.stringify(adjustments));
+                }
+            }
+        } catch (err) {
+            console.warn('Error cleaning stored data:', err);
+        }
     }
 
     // --- GOOGLE SHEETS REAL-TIME DATABASE SYNC ENGINE ---
@@ -614,6 +660,17 @@ class DataStore {
                 r.year = period.year;
                 r.month = period.month;
             }
+            if (r.oldReading !== undefined) r.oldReading = parseFloat(r.oldReading) || 0;
+            if (r.newReading !== undefined) r.newReading = parseFloat(r.newReading) || 0;
+            if (r.rawVolume !== undefined) r.rawVolume = parseFloat(r.rawVolume) || 0;
+            if (r.grossVolume !== undefined) r.grossVolume = parseFloat(r.grossVolume) || 0;
+            if (r.additionVolume !== undefined) r.additionVolume = parseFloat(r.additionVolume) || 0;
+            if (r.internalUse !== undefined) r.internalUse = parseFloat(r.internalUse) || 0;
+            if (r.flushingUse !== undefined) r.flushingUse = parseFloat(r.flushingUse) || 0;
+            if (r.leakageLoss !== undefined) r.leakageLoss = parseFloat(r.leakageLoss) || 0;
+            if (r.otherDeduction !== undefined) r.otherDeduction = parseFloat(r.otherDeduction) || 0;
+            if (r.totalDeduction !== undefined) r.totalDeduction = parseFloat(r.totalDeduction) || 0;
+            if (r.netVolume !== undefined) r.netVolume = parseFloat(r.netVolume) || 0;
             return r;
         });
 
@@ -998,6 +1055,10 @@ class DataStore {
     // --- UNIT ADJUSTMENTS (TĂNG / GIẢM SẢN LƯỢNG ĐƠN VỊ THEO THÁNG) ---
     getUnitAdjustments(filters = {}) {
         let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
+        adjustments = adjustments.map(a => {
+            if (a.volume !== undefined) a.volume = parseFloat(a.volume) || 0;
+            return a;
+        });
         if (filters.unitId && filters.unitId !== 'all') {
             adjustments = adjustments.filter(a => a.unitId === filters.unitId);
         }
@@ -1130,20 +1191,20 @@ class DataStore {
             });
 
             readings.forEach(r => {
-                const addition = r.additionVolume || 0;
+                const addition = parseFloat(r.additionVolume) || 0;
                 totalAdditions += addition;
 
-                const internal = r.internalUse || 0;
-                const flushing = r.flushingUse || 0;
-                const leakage = r.leakageLoss || 0;
-                const otherDed = r.otherDeduction || 0;
-                const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
+                const internal = parseFloat(r.internalUse) || 0;
+                const flushing = parseFloat(r.flushingUse) || 0;
+                const leakage = parseFloat(r.leakageLoss) || 0;
+                const otherDed = parseFloat(r.otherDeduction) || 0;
+                const deduction = r.totalDeduction !== undefined ? parseFloat(r.totalDeduction) || 0 : (internal + flushing + leakage + otherDed);
 
                 totalInternal += internal;
                 totalFlushing += flushing;
                 totalLeakage += leakage;
                 totalOtherDeductions += otherDed;
-                totalDeduction += deduction;
+                totalDeduction = Number(totalDeduction) + Number(deduction);
 
                 activeStationIds.add(r.stationId);
                 activeUnitIds.add(r.unitId);
@@ -1153,27 +1214,27 @@ class DataStore {
                 const st = this.getStationById(r.stationId);
                 const stType = r.stationType || (st ? st.type : 'plus') || 'plus';
                 
-                const rawVol = r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading);
+                const rawVol = parseFloat(r.rawVolume !== undefined ? r.rawVolume : (r.newReading - r.oldReading)) || 0;
                 if (stType === 'minus') {
                     totalMinusGross += rawVol;
                 } else {
                     totalPlusGross += rawVol;
                 }
 
-                const addition = r.additionVolume || 0;
+                const addition = parseFloat(r.additionVolume) || 0;
                 totalAdditions += addition;
 
-                const internal = r.internalUse || 0;
-                const flushing = r.flushingUse || 0;
-                const leakage = r.leakageLoss || 0;
-                const otherDed = r.otherDeduction || 0;
-                const deduction = r.totalDeduction !== undefined ? r.totalDeduction : (internal + flushing + leakage + otherDed);
+                const internal = parseFloat(r.internalUse) || 0;
+                const flushing = parseFloat(r.flushingUse) || 0;
+                const leakage = parseFloat(r.leakageLoss) || 0;
+                const otherDed = parseFloat(r.otherDeduction) || 0;
+                const deduction = r.totalDeduction !== undefined ? parseFloat(r.totalDeduction) || 0 : (internal + flushing + leakage + otherDed);
 
                 totalInternal += internal;
                 totalFlushing += flushing;
                 totalLeakage += leakage;
                 totalOtherDeductions += otherDed;
-                totalDeduction += deduction;
+                totalDeduction = Number(totalDeduction) + Number(deduction);
 
                 activeStationIds.add(r.stationId);
                 activeUnitIds.add(r.unitId);
@@ -1183,15 +1244,15 @@ class DataStore {
         // Include Unit Level Adjustments (Tăng / Giảm sản lượng riêng của Đơn vị theo Tháng)
         const unitAdjustments = this.getUnitAdjustments(filters);
         unitAdjustments.forEach(adj => {
-            const vol = adj.volume || 0;
+            const vol = parseFloat(adj.volume) || 0;
             if (adj.type === 'addition') {
-                totalAdditions += vol;
+                totalAdditions = Number(totalAdditions) + Number(vol);
             } else if (adj.type === 'deduction') {
-                if (adj.category === 'internal') totalInternal += vol;
-                else if (adj.category === 'flushing') totalFlushing += vol;
-                else if (adj.category === 'leakage') totalLeakage += vol;
-                else totalOtherDeductions += vol;
-                totalDeduction += vol;
+                if (adj.category === 'internal') totalInternal = Number(totalInternal) + Number(vol);
+                else if (adj.category === 'flushing') totalFlushing = Number(totalFlushing) + Number(vol);
+                else if (adj.category === 'leakage') totalLeakage = Number(totalLeakage) + Number(vol);
+                else totalOtherDeductions = Number(totalOtherDeductions) + Number(vol);
+                totalDeduction = Number(totalDeduction) + Number(vol);
             }
             if (adj.unitId) activeUnitIds.add(adj.unitId);
         });
