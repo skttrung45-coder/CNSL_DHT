@@ -1054,6 +1054,12 @@ class DataStore {
 
     // --- UNIT ADJUSTMENTS (TĂNG / GIẢM SẢN LƯỢNG ĐƠN VỊ THEO THÁNG) ---
     getUnitAdjustments(filters = {}) {
+        // Điều chỉnh sản lượng chung cấp Đơn vị (XNCN) KHÔNG thuộc về từng trạm riêng lẻ.
+        // Khi truy vấn theo một trạm cụ thể (stationId !== 'all'), loại bỏ các khoản điều chỉnh chung này.
+        if (filters.stationId && filters.stationId !== 'all') {
+            return [];
+        }
+
         let adjustments = JSON.parse(localStorage.getItem(STORAGE_KEYS.UNIT_ADJUSTMENTS) || '[]');
         adjustments = adjustments.map(a => {
             if (a.volume !== undefined) a.volume = parseFloat(a.volume) || 0;
