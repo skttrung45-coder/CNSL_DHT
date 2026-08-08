@@ -74,6 +74,7 @@ class DataStore {
         this.syncStatus = 'connecting'; // 'connected' | 'syncing' | 'offline'
         this.lastSyncedAt = null;
         this.isSyncing = false;
+        this.isSavingCloud = false;
 
         // Auto initial fetch from cloud & setup background polling every 3 seconds for high-speed sync
         setTimeout(() => this.syncFromCloud(), 100);
@@ -185,12 +186,13 @@ class DataStore {
         }
     }
 
-    // --- GOOGLE SHEETS REAL-TIME DATABASE SYNC ENGINE ---
+    // --- GOOGLE SHEETS REAL-TIME DATABASE SYNC ENGINE (SMART MERGE) ---
     async syncFromCloud(isBackground = false) {
         if (!GAS_URL) return;
         if (this.isSyncing && isBackground) return;
-        // Don't overwrite local storage if we just performed a local write in the last 1.5 seconds
-        if (this.lastWriteTime && (Date.now() - this.lastWriteTime < 1500)) return;
+        if (this.isSavingCloud) return; // Do NOT pull while a POST save is actively executing
+        // Don't overwrite local storage if we performed a local write in the last 10 seconds
+        if (this.lastWriteTime && (Date.now() - this.lastWriteTime < 10000)) return;
 
         this.updateSyncUI('syncing', 'Google Sheets: Đang đồng bộ...');
         this.isSyncing = true;
@@ -202,6 +204,8 @@ class DataStore {
 
             let hasChanged = false;
             let isCloudEmpty = true;
+            let requiresPushLocalToCloud = false;
+
             const keysMap = {
                 units: STORAGE_KEYS.UNITS,
                 stations: STORAGE_KEYS.STATIONS,
@@ -212,10 +216,11 @@ class DataStore {
             };
 
             for (const [key, storageKey] of Object.entries(keysMap)) {
-                if (data[key] && Array.isArray(data[key]) && data[key].length > 0) {
+                const cloudData = data[key];
+                if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
                     isCloudEmpty = false;
                     if (key === 'readings') {
-                        data[key] = data[key].map(r => {
+                        cloudData.forEach(r => {
                             if (r.cutoffDate) {
                                 const normDate = normalizeDateString(r.cutoffDate);
                                 r.cutoffDate = normDate;
@@ -223,20 +228,65 @@ class DataStore {
                                 r.year = period.year;
                                 r.month = period.month;
                             }
-                            return r;
                         });
                     }
-                    const currentLocal = localStorage.getItem(storageKey);
-                    const newCloudStr = JSON.stringify(data[key]);
-                    if (currentLocal !== newCloudStr) {
-                        localStorage.setItem(storageKey, newCloudStr);
+
+                    // --- SMART MERGE ALGORITHM: ABSOLUTELY PREVENT LOCAL DATA EXPUNGE ---
+                    const localStr = localStorage.getItem(storageKey);
+                    let localItems = [];
+                    try {
+                        localItems = JSON.parse(localStr || '[]');
+                    } catch (e) {
+                        localItems = [];
+                    }
+
+                    if (!Array.isArray(localItems)) localItems = [];
+
+                    const mergedMap = new Map();
+
+                    // 1. Put all Cloud items into mergedMap
+                    cloudData.forEach(item => {
+                        if (item && item.id) {
+                            mergedMap.set(item.id, item);
+                        }
+                    });
+
+                    // 2. Preserve any local items that are NOT in Cloud yet
+                    let localOnlyCount = 0;
+                    localItems.forEach(localItem => {
+                        if (localItem && localItem.id) {
+                            if (!mergedMap.has(localItem.id)) {
+                                mergedMap.set(localItem.id, localItem);
+                                localOnlyCount++;
+                            }
+                        }
+                    });
+
+                    // If local contains unsynced records, queue auto-push to cloud
+                    if (localOnlyCount > 0) {
+                        requiresPushLocalToCloud = true;
+                    }
+
+                    const mergedList = Array.from(mergedMap.values());
+                    const mergedStr = JSON.stringify(mergedList);
+
+                    if (localStr !== mergedStr) {
+                        localStorage.setItem(storageKey, mergedStr);
                         hasChanged = true;
+                    }
+                } else {
+                    // Cloud returned empty array for this table. If local HAS data, protect local and push to cloud!
+                    const localStr = localStorage.getItem(storageKey);
+                    let localItems = [];
+                    try { localItems = JSON.parse(localStr || '[]'); } catch (e) {}
+                    if (Array.isArray(localItems) && localItems.length > 0) {
+                        requiresPushLocalToCloud = true;
                     }
                 }
             }
 
-            // If cloud spreadsheet is completely empty (first time deployment), seed cloud from local default data
-            if (isCloudEmpty) {
+            // If cloud spreadsheet is completely empty or missing local items, push local records to Cloud
+            if (isCloudEmpty || requiresPushLocalToCloud) {
                 await this.syncAllToCloud();
             }
 
@@ -257,6 +307,7 @@ class DataStore {
     async syncTableToCloud(tableName) {
         if (!GAS_URL) return;
         this.lastWriteTime = Date.now();
+        this.isSavingCloud = true;
         this.updateSyncUI('syncing', `Đang đẩy ${tableName} lên Google Sheets...`);
         try {
             const keyUpper = tableName.toUpperCase();
@@ -278,6 +329,8 @@ class DataStore {
         } catch (err) {
             console.warn('Failed to sync table to cloud:', err);
             this.updateSyncUI('offline', 'Google Sheets: Lưu local (Chờ kết nối)');
+        } finally {
+            this.isSavingCloud = false;
         }
     }
 
